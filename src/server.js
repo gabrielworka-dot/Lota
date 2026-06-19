@@ -18,10 +18,31 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'lota_dev_secret';
 
 // ── Paths ─────────────────────────────────────────────────
-const DATA_DIR   = fs.existsSync('/app') ? '/app' : path.join(__dirname, '..');
-const DB_FILE    = path.join(DATA_DIR, 'db.json');
-const PUBLIC_DIR = path.join(__dirname, '../public');
+const DATA_DIR = fs.existsSync('/app') ? '/app' : path.join(__dirname, '..');
+
+// Busca a pasta public em múltiplos lugares possíveis
+const POSSIBLE_PUBLIC = [
+  path.join(__dirname, '../public'),
+  path.join(process.cwd(), 'public'),
+  path.join(__dirname, 'public'),
+  '/app/public',
+  path.join(process.cwd(), 'lota/public')
+];
+const PUBLIC_DIR = POSSIBLE_PUBLIC.find(p => {
+  try { return fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html')); } catch(e) { return false; }
+}) || path.join(__dirname, '../public');
+
 const INDEX_HTML = path.join(PUBLIC_DIR, 'index.html');
+
+console.log(`📁 __dirname: ${__dirname}`);
+console.log(`📁 cwd: ${process.cwd()}`);
+console.log(`📁 PUBLIC_DIR: ${PUBLIC_DIR}`);
+console.log(`📄 index.html existe: ${fs.existsSync(INDEX_HTML)}`);
+console.log(`📋 Arquivos em cwd: ${fs.readdirSync(process.cwd()).join(', ')}`);
+try { console.log(`📋 Arquivos em __dirname: ${fs.readdirSync(__dirname).join(', ')}`); } catch(e) {}
+try { console.log(`📋 Arquivos em /app: ${fs.readdirSync('/app').join(', ')}`); } catch(e) {}
+
+const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(PUBLIC_DIR));
@@ -525,8 +546,26 @@ app.get('/health', (req, res) => res.json({
 }));
 
 app.get('*', (req, res) => {
-  if (fs.existsSync(INDEX_HTML)) res.sendFile(INDEX_HTML);
-  else res.status(500).send(`<h2>index.html não encontrado</h2><p>Pasta: ${PUBLIC_DIR}</p>`);
+  if (fs.existsSync(INDEX_HTML)) {
+    return res.sendFile(INDEX_HTML);
+  }
+  // Diagnóstico detalhado para ajudar a encontrar o problema
+  const diag = {
+    erro: 'index.html não encontrado',
+    PUBLIC_DIR,
+    INDEX_HTML,
+    __dirname,
+    cwd: process.cwd(),
+    tentativas: POSSIBLE_PUBLIC.map(p => ({ path: p, existe: fs.existsSync(p) })),
+    arquivosCwd: (() => { try { return fs.readdirSync(process.cwd()); } catch(e) { return []; } })(),
+    arquivosApp: (() => { try { return fs.readdirSync('/app'); } catch(e) { return []; } })(),
+    arquivosDir: (() => { try { return fs.readdirSync(__dirname); } catch(e) { return []; } })(),
+  };
+  res.status(500).send(`
+    <h2>⚠️ index.html não encontrado</h2>
+    <pre style="font-family:monospace;font-size:12px;background:#111;color:#0f0;padding:20px;border-radius:8px">${JSON.stringify(diag, null, 2)}</pre>
+    <p>Copie este diagnóstico e envie para o suporte.</p>
+  `);
 });
 
 app.listen(PORT, () => {
