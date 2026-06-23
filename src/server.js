@@ -386,39 +386,78 @@ app.get('/api/meta/page/:projectId', auth, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════
-// MÓDULOS DE IA
+// MÓDULOS DE IA — salva tudo em UM único projeto
 // ════════════════════════════════════════════════════════
 async function aiRoute(path, bodyFn) {
   app.post(path, auth, rateLimit(60000, 20), async (req, res) => {
     try {
       const { system, prompt } = bodyFn(req.body, req.user);
       const result = await callAI(system || SYSTEM_LOTA, prompt, 2500);
-      // Salva projeto automaticamente
-      const ud = loadUD(req.user.id);
+      const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+      const ud = loadUD(uid);
       ud.projects = ud.projects || [];
-      const proj = {
-        id: uuidv4(),
-        tipo: req.body._tipo || 'geral',
-        nome: sanitize(req.body._nome || req.body.nome || req.body.tema || 'Projeto', 80),
-        eventoId: req.body._eventoId || null,
-        inputs: req.body,
-        resultado: result,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      ud.projects.unshift(proj);
-      if (ud.projects.length > 200) ud.projects = ud.projects.slice(0, 200);
-      saveUD(req.user.id, ud);
+
+      const eventoId = req.body._eventoId || null;
+      const tipo     = req.body._tipo || 'geral';
+      const nome     = sanitize(req.body._nome || req.body.nome || req.body.tema || 'Projeto', 80);
+
+      // Se tem _eventoId, atualiza o projeto existente em vez de criar um novo
+      let proj = eventoId ? ud.projects.find(p => p.id === eventoId) : null;
+
+      if (proj) {
+        // Adiciona módulo ao projeto existente
+        if (!proj.modulos) proj.modulos = {};
+        proj.modulos[tipo] = { resultado: result, inputs: req.body, updatedAt: new Date().toISOString() };
+        proj.updatedAt = new Date().toISOString();
+        // Atualiza o resultado principal com o último módulo
+        proj.ultimoModulo = tipo;
+        saveUD(uid, ud);
+        res.json({ result, projectId: proj.id });
+      } else {
+        // Cria projeto novo (primeiro módulo = Nome)
+        proj = {
+          id: uuidv4(),
+          tipo: 'evento',
+          nome,
+          nomeEvento: nome,
+          status: 'em_criacao',
+          modulos: { [tipo]: { resultado: result, inputs: req.body, updatedAt: new Date().toISOString() } },
+          resultado: result, // mantido por compatibilidade
+          cores: { primaria: '#D97706', secundaria: '#1A1714', texto: '#F5F0E8' },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        ud.projects.unshift(proj);
+        if (ud.projects.length > 200) ud.projects = ud.projects.slice(0, 200);
+        saveUD(uid, ud);
+        res.json({ result, projectId: proj.id });
+      }
+
       // Incrementa uso
       const user = db.users.find(u => u.id === req.user.id);
       user.used = (user.used || 0) + 1;
       saveDB(db);
-      res.json({ result, projectId: proj.id });
     } catch(e) {
       res.status(500).json({ error: e.message });
     }
   });
 }
+
+// PATCH — marca projeto como ativo/concluído e salva cores
+app.patch('/api/projeto/:projectId/finalizar', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const proj = (ud.projects || []).find(p => p.id === req.params.projectId);
+  if (!proj) return res.status(404).json({ error: 'Projeto não encontrado.' });
+  proj.status = 'ativo';
+  if (req.body.cores)      proj.cores      = req.body.cores;
+  if (req.body.nomeEvento) proj.nomeEvento = sanitize(req.body.nomeEvento, 80);
+  if (req.body.tipo)       proj.tipoEvento = sanitize(req.body.tipo, 80);
+  if (req.body.nome)       proj.nome       = sanitize(req.body.nome, 80);
+  proj.updatedAt = new Date().toISOString();
+  saveUD(uid, ud);
+  res.json({ ok: true, projeto: proj });
+});
 
 aiRoute('/api/evento/criar-nome', (b) => ({
   prompt: `Crie 5 opções de nome para um evento:
