@@ -176,20 +176,6 @@ app.post('/api/auth/login', rateLimit(60000, 10), (req, res) => {
 
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: safe(req.user) }));
 
-app.patch('/api/auth/profile', auth, rateLimit(60000, 10), (req, res) => {
-  const user = db.users.find(u => u.id === req.user.id);
-  const { displayName, currentPassword, newPassword } = req.body;
-  if (newPassword) {
-    if (!currentPassword || !bcrypt.compareSync(currentPassword, user.password))
-      return res.status(401).json({ error: 'Senha atual incorreta.' });
-    if (newPassword.length < 6) return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' });
-    user.password = bcrypt.hashSync(newPassword, 12);
-  }
-  if (displayName) user.displayName = sanitize(displayName, 60);
-  saveDB(db);
-  res.json({ user: safe(user) });
-});
-
 // ════════════════════════════════════════════════════════
 // ADMIN
 // ════════════════════════════════════════════════════════
@@ -253,15 +239,22 @@ app.delete('/api/admin/users/:id', auth, adminOnly, (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════
-// USER DATA
+// USER DATA (sub-usuários compartilham dados do pai)
 // ════════════════════════════════════════════════════════
-app.get('/api/data', auth, (req, res) => res.json(loadUD(req.user.id)));
+app.get('/api/data', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  res.json(loadUD(uid));
+});
 app.post('/api/data', auth, (req, res) => {
-  const curr = loadUD(req.user.id);
+  // Leitores não podem editar
+  if (req.user.isSubUser && req.user.subRole === 'leitor')
+    return res.status(403).json({ error: 'Acesso somente leitura.' });
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const curr = loadUD(uid);
   if (req.body.events   !== undefined) curr.events   = req.body.events;
   if (req.body.projects !== undefined) curr.projects = req.body.projects;
   if (req.body.metrics  !== undefined) curr.metrics  = req.body.metrics;
-  saveUD(req.user.id, curr);
+  saveUD(uid, curr);
   res.json({ ok: true });
 });
 
@@ -537,8 +530,199 @@ Evento: ${sanitize(b.nome,100)} | Tipo: ${sanitize(b.tipo,100)} | Tema: ${saniti
 }));
 
 // ════════════════════════════════════════════════════════
-// HEALTH
+// SUB-USUÁRIOS (plano PRO: até 3, Unlimited: até 10)
 // ════════════════════════════════════════════════════════
+const SUBUSR_LIMITS = { basic: 0, pro: 3, unlimited: 10 };
+
+// Retorna sub-usuários de uma conta pai
+app.get('/api/subusuarios', auth, (req, res) => {
+  const subs = db.users.filter(u => u.parentId === req.user.id);
+  res.json(subs.map(safe));
+});
+
+// Cria sub-usuário
+app.post('/api/subusuarios', auth, rateLimit(60000, 10), (req, res) => {
+  const plan = req.user.plan || 'basic';
+  const maxSubs = SUBUSR_LIMITS[plan] || 0;
+  if (maxSubs === 0) return res.status(403).json({ error: 'Seu plano não permite sub-usuários. Faça upgrade para PRO.' });
+  const currentSubs = db.users.filter(u => u.parentId === req.user.id).length;
+  if (currentSubs >= maxSubs) return res.status(400).json({ error: `Limite de ${maxSubs} sub-usuários para o plano ${plan.toUpperCase()} atingido.` });
+
+  const { name, password, displayName, cargo, role } = req.body;
+  if (!name || !password) return res.status(400).json({ error: 'Nome e senha obrigatórios.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres.' });
+  const normalizedName = sanitize(name, 60).toLowerCase();
+  if (db.users.find(u => u.name.toLowerCase() === normalizedName))
+    return res.status(400).json({ error: 'Login já em uso.' });
+  const validRoles = ['leitor', 'editor', 'total'];
+  const subRole = validRoles.includes(role) ? role : 'leitor';
+  const user = {
+    id: uuidv4(), name: normalizedName,
+    displayName: sanitize(displayName || name, 60),
+    cargo: sanitize(cargo || '', 60),
+    password: bcrypt.hashSync(password, 12),
+    plan: 'basic', limit: 0, used: 0,
+    isAdmin: false, active: true, avatar: '',
+    parentId: req.user.id,
+    subRole,
+    isSubUser: true,
+    createdAt: new Date().toISOString()
+  };
+  db.users.push(user);
+  saveDB(db);
+  res.status(201).json({ user: safe(user) });
+});
+
+app.patch('/api/subusuarios/:id', auth, (req, res) => {
+  const user = db.users.find(u => u.id === req.params.id && u.parentId === req.user.id);
+  if (!user) return res.status(404).json({ error: 'Sub-usuário não encontrado.' });
+  const { displayName, cargo, role, active, password } = req.body;
+  if (displayName) user.displayName = sanitize(displayName, 60);
+  if (cargo !== undefined) user.cargo = sanitize(cargo, 60);
+  if (role && ['leitor','editor','total'].includes(role)) user.subRole = role;
+  if (active !== undefined) user.active = !!active;
+  if (password && password.length >= 6) user.password = bcrypt.hashSync(password, 12);
+  saveDB(db);
+  res.json({ user: safe(user) });
+});
+
+app.delete('/api/subusuarios/:id', auth, (req, res) => {
+  const user = db.users.find(u => u.id === req.params.id && u.parentId === req.user.id);
+  if (!user) return res.status(404).json({ error: 'Sub-usuário não encontrado.' });
+  db.users = db.users.filter(u => u.id !== req.params.id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Patch de perfil para sub-usuário (nome e cargo próprios)
+app.patch('/api/auth/profile', auth, rateLimit(60000, 10), (req, res) => {
+  const user = db.users.find(u => u.id === req.user.id);
+  const { displayName, currentPassword, newPassword, cargo } = req.body;
+  if (newPassword) {
+    if (!currentPassword || !bcrypt.compareSync(currentPassword, user.password))
+      return res.status(401).json({ error: 'Senha atual incorreta.' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' });
+    user.password = bcrypt.hashSync(newPassword, 12);
+  }
+  if (displayName) user.displayName = sanitize(displayName, 60);
+  if (cargo !== undefined) user.cargo = sanitize(cargo, 60);
+  saveDB(db);
+  res.json({ user: safe(user) });
+});
+
+// ════════════════════════════════════════════════════════
+// DIRECIONAMENTO E DICAS (admin adiciona, todos veem)
+// ════════════════════════════════════════════════════════
+const DICAS_FILE = path.join(DATA_DIR, 'dicas.json');
+function loadDicas() {
+  try { if (fs.existsSync(DICAS_FILE)) return JSON.parse(fs.readFileSync(DICAS_FILE,'utf8')); } catch(e) {}
+  return { dicas: [] };
+}
+function saveDicas(d) { try { fs.writeFileSync(DICAS_FILE, JSON.stringify(d)); } catch(e) {} }
+
+app.get('/api/dicas', auth, (req, res) => {
+  const d = loadDicas();
+  res.json({ dicas: d.dicas || [] });
+});
+
+app.post('/api/dicas', auth, adminOnly, (req, res) => {
+  const { titulo, descricao, url, categoria } = req.body;
+  if (!titulo || !url) return res.status(400).json({ error: 'Título e URL obrigatórios.' });
+  const d = loadDicas();
+  d.dicas = d.dicas || [];
+  d.dicas.unshift({
+    id: uuidv4(),
+    titulo: sanitize(titulo, 100),
+    descricao: sanitize(descricao || '', 500),
+    url: url.slice(0, 500),
+    categoria: sanitize(categoria || 'Geral', 60),
+    createdAt: new Date().toISOString()
+  });
+  saveDicas(d);
+  res.json({ ok: true });
+});
+
+app.delete('/api/dicas/:id', auth, adminOnly, (req, res) => {
+  const d = loadDicas();
+  d.dicas = (d.dicas || []).filter(x => x.id !== req.params.id);
+  saveDicas(d);
+  res.json({ ok: true });
+});
+
+// ════════════════════════════════════════════════════════
+// INSUMOS — links de materiais por projeto
+// ════════════════════════════════════════════════════════
+app.get('/api/insumos/:projectId', auth, (req, res) => {
+  const ud = loadUD(req.user.isSubUser ? req.user.parentId : req.user.id);
+  const insumos = ud.insumos?.[req.params.projectId] || [];
+  res.json({ insumos });
+});
+
+app.post('/api/insumos/:projectId', auth, (req, res) => {
+  const { titulo, url, tipo, descricao } = req.body;
+  if (!titulo || !url) return res.status(400).json({ error: 'Título e URL obrigatórios.' });
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  if (!ud.insumos) ud.insumos = {};
+  if (!ud.insumos[req.params.projectId]) ud.insumos[req.params.projectId] = [];
+  ud.insumos[req.params.projectId].unshift({
+    id: uuidv4(),
+    titulo: sanitize(titulo, 100),
+    url: url.slice(0, 500),
+    tipo: sanitize(tipo || 'Link', 40),
+    descricao: sanitize(descricao || '', 300),
+    addedBy: req.user.displayName || req.user.name,
+    createdAt: new Date().toISOString()
+  });
+  saveUD(uid, ud);
+  res.json({ ok: true });
+});
+
+app.delete('/api/insumos/:projectId/:insumoId', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  if (ud.insumos?.[req.params.projectId]) {
+    ud.insumos[req.params.projectId] = ud.insumos[req.params.projectId].filter(x => x.id !== req.params.insumoId);
+    saveUD(uid, ud);
+  }
+  res.json({ ok: true });
+});
+
+// ════════════════════════════════════════════════════════
+// FLUXO DE PROJETO — salva seleções por etapa
+// ════════════════════════════════════════════════════════
+app.patch('/api/projeto/:projectId/etapa', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const proj = (ud.projects || []).find(p => p.id === req.params.projectId);
+  if (!proj) return res.status(404).json({ error: 'Projeto não encontrado.' });
+  const { etapa, selecao, etapaIndex } = req.body;
+  if (!proj.etapas) proj.etapas = {};
+  proj.etapas[etapa] = { selecao, etapaIndex, updatedAt: new Date().toISOString() };
+  proj.etapaAtual = req.body.etapaAtual || proj.etapaAtual || 0;
+  if (req.body.ativo !== undefined) proj.ativo = req.body.ativo;
+  proj.updatedAt = new Date().toISOString();
+  saveUD(uid, ud);
+  res.json({ ok: true, projeto: proj });
+});
+
+// ════════════════════════════════════════════════════════
+// BANNER SVG — geração visual de referência
+// ════════════════════════════════════════════════════════
+app.post('/api/banner/generate', auth, async (req, res) => {
+  const { nomeEvento, tagline, cores, tipo, data, local } = req.body;
+  if (!nomeEvento) return res.status(400).json({ error: 'Nome do evento obrigatório.' });
+  // Retorna dados para o frontend gerar o SVG
+  res.json({
+    nomeEvento: sanitize(nomeEvento, 80),
+    tagline: sanitize(tagline || '', 120),
+    tipo: sanitize(tipo || '', 60),
+    data: sanitize(data || '', 40),
+    local: sanitize(local || '', 80),
+    cores: cores || { primaria: '#D97706', secundaria: '#1A1714', texto: '#F5F0E8' }
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok', app: 'Lota v2.0', brand: 'Workamusic',
