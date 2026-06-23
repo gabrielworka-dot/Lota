@@ -354,18 +354,14 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <div class="nav-item active" id="nav-home" onclick="goPage('home',this)"><span class="nav-icon">🏠</span> Dashboard</div>
       <div class="nav-item" id="nav-projetos" onclick="goPage('projetos',this)"><span class="nav-icon">📁</span> Projetos <span class="nav-badge" id="projBadge" style="display:none">0</span></div>
       <div class="sb-section">Criar</div>
-      <div class="nav-item" id="nav-criar" onclick="goPage('criar',this)"><span class="nav-icon">✨</span> Criar Evento</div>
-      <div class="sb-section">Módulos</div>
-      <div class="nav-item" id="nav-publico" onclick="goPage('publico',this)"><span class="nav-icon">👥</span> Público</div>
-      <div class="nav-item" id="nav-lancamento" onclick="goPage('lancamento',this)"><span class="nav-icon">🚀</span> Lançamento</div>
-      <div class="nav-item" id="nav-campanha" onclick="goPage('campanha',this)"><span class="nav-icon">📅</span> Campanha</div>
-      <div class="nav-item" id="nav-criativo" onclick="goPage('criativo',this)"><span class="nav-icon">🎬</span> Criativo</div>
-      <div class="nav-item" id="nav-conteudo" onclick="goPage('conteudo',this)"><span class="nav-icon">📱</span> Conteúdo</div>
-      <div class="nav-item" id="nav-vendas" onclick="goPage('vendas',this)"><span class="nav-icon">💰</span> Vendas</div>
+      <div class="nav-item" id="nav-criar" onclick="goPage('criar',this)"><span class="nav-icon">✨</span> Novo Projeto</div>
+      <div class="sb-section">Recursos</div>
+      <div class="nav-item" id="nav-dicas" onclick="goPage('dicas',this)"><span class="nav-icon">🎓</span> Direcionamento e Dicas</div>
       <div class="sb-section">Comunicação</div>
       <div class="nav-item" id="nav-chat" onclick="goPage('chat',this)"><span class="nav-icon">💬</span> Chat da Equipe</div>
       <div class="sb-section" id="adminSection" style="display:none">Administração</div>
       <div class="nav-item" id="nav-admin" onclick="goPage('admin',this)" style="display:none"><span class="nav-icon">⚙️</span> Usuários</div>
+      <div class="nav-item" id="nav-subusuarios" onclick="goPage('subusuarios',this)" style="display:none"><span class="nav-icon">👥</span> Minha Equipe</div>
     </div>
     <div class="sb-bottom">
       <div class="theme-row">
@@ -434,6 +430,70 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       </div>
     </div>
 
+    <!-- ══════ CRIAR — FLUXO EM ETAPAS ══════ -->
+    <div class="page" id="page-criar">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:700;color:var(--text)">Montagem do Projeto</span>
+          <span style="font-size:12px;color:var(--text3)" id="etapaLabel">Etapa 1 de 9</span>
+        </div>
+        <div style="display:flex;gap:4px" id="etapaProgress"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="etapaNomes"></div>
+      </div>
+      <div id="fluxo-etapa-1" class="fluxo-etapa">
+        <div class="card">
+          <div class="card-title">Etapa 1 — Tema e Tipo do Evento</div>
+          <div class="form-group"><label>Tema ou ideia principal *</label><textarea class="form-textarea" id="f-tema" style="min-height:80px" placeholder="Ex: Festa que vai tocar só rock dos anos 2000, show de MPB clássica dos anos 80..."></textarea></div>
+          <div class="form-group"><label>Tipo de Evento *</label><select class="form-select" id="f-tipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
+          <div class="form-grid2">
+            <div class="form-group"><label>Vibe desejada</label><input type="text" class="form-input" id="f-vibe" placeholder="Ex: Saudosista, luxuosa, irreverente..."></div>
+            <div class="form-group"><label>Público-alvo</label><input type="text" class="form-input" id="f-publico" placeholder="Ex: 30-45 anos, nostálgicos de MPB"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="fluxoGerarNomes()" id="btnGerarNomes">✨ Gerar Opções de Nome →</button></div>
+        </div>
+      </div>
+      <div id="fluxo-etapa-2" class="fluxo-etapa" style="display:none">
+        <div style="margin-bottom:14px;font-size:14px;font-weight:700;color:var(--text)">Clique no nome que mais combina com seu evento:</div>
+        <div id="fluxo-nomes-opcoes" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="fluxoIrEtapa(1)">← Refazer tema</button>
+          <button class="btn btn-ghost" onclick="fluxoGerarNomes()">🔄 Novas opções</button>
+        </div>
+      </div>
+      <div id="fluxo-etapa-3" class="fluxo-etapa" style="display:none">
+        <div style="background:var(--primary-bg);border:1px solid var(--primary-border);border-radius:10px;padding:14px;margin-bottom:16px">
+          <div style="font-size:12px;color:var(--text3)">Nome selecionado</div>
+          <div style="font-size:18px;font-weight:800;color:var(--primary)" id="f-nome-selecionado"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Etapa 3 — Complemento para Identidade Visual</div>
+          <div class="form-grid2">
+            <div class="form-group"><label>Gênero Musical / Tema detalhado</label><input type="text" class="form-input" id="f-genero" placeholder="Ex: MPB clássica anos 70-80"></div>
+            <div class="form-group"><label>Artistas principais</label><input type="text" class="form-input" id="f-artistas" placeholder="Ex: Caetano, Djavan, Alceu..."></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="fluxoIrEtapa(2)">← Voltar</button>
+            <button class="btn btn-primary" onclick="fluxoGerarIdentidade()">🎨 Gerar Identidade →</button>
+          </div>
+        </div>
+      </div>
+      <div id="fluxo-etapa-4" class="fluxo-etapa" style="display:none">
+        <div style="margin-bottom:14px;font-size:14px;font-weight:700;color:var(--text)">Selecione a identidade que mais combina:</div>
+        <div id="fluxo-id-opcoes" style="display:flex;flex-direction:column;gap:12px"></div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="fluxoIrEtapa(3)">← Refazer identidade</button>
+          <button class="btn btn-ghost" onclick="fluxoGerarIdentidade()">🔄 Novas opções</button>
+        </div>
+      </div>
+      <div id="fluxo-etapa-modulo" class="fluxo-etapa" style="display:none">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:800;color:var(--text)" id="moduloAtualTitulo"></div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px" id="moduloAtualDesc"></div>
+        </div>
+        <div id="moduloAtualForm"></div>
+      </div>
+    </div>
+
     <!-- ══════ PROJETOS ══════ -->
     <div class="page" id="page-projetos">
       <div id="projetosLista"></div>
@@ -444,141 +504,24 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <div id="projetoDetalheContent"></div>
     </div>
 
-    <!-- ══════ CRIAR ══════ -->
-    <div class="page" id="page-criar">
-      <div class="tabs">
-        <div class="tab active" id="tabCriarNome" onclick="switchTab('criar','nome',this)">✨ Nome do Evento</div>
-        <div class="tab" id="tabCriarId" onclick="switchTab('criar','identidade',this)">🎨 Identidade Completa</div>
-      </div>
-      <div id="criarNomePanel">
-        <div style="display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start">
-          <div class="card">
-            <div class="card-title">Dados do Evento</div>
-            <div class="form-group"><label>Tema ou ideia *</label><textarea class="form-textarea" id="nomeTema" style="min-height:80px" placeholder="Ex: Festa que vai tocar só rock dos anos 2000, show de MPB clássica..."></textarea></div>
-            <div class="form-group"><label>Tipo de Evento</label><select class="form-select" id="nomeTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-            <div class="form-group"><label>Vibe desejada</label><input type="text" class="form-input" id="nomeVibe" placeholder="Ex: Saudosista, luxuosa, irreverente..."></div>
-            <div class="form-group"><label>Público-alvo</label><input type="text" class="form-input" id="nomePublico" placeholder="Ex: 30-45 anos, nostálgicos de MPB"></div>
-            <div class="btn-row"><button class="btn btn-primary" onclick="runModule('criar-nome','nomeResultado',{tema:'nomeTema',tipo:'nomeTipo',vibe:'nomeVibe',publico:'nomePublico'},this)" id="btnNome">✨ Gerar Opções de Nome</button></div>
-          </div>
-          <div id="nomeResultado"><div class="empty"><span class="empty-icon">🎪</span><p>Preencha e gere as opções</p></div></div>
+    <!-- ══════ DICAS ══════ -->
+    <div class="page" id="page-dicas">
+      <div id="dicasAdminPanel" style="display:none;margin-bottom:20px">
+        <div class="card">
+          <div class="card-title">➕ Publicar Conteúdo Exclusivo</div>
+          <div class="form-group"><label>Título *</label><input type="text" class="form-input" id="dicaTitulo" placeholder="Ex: Como criar escassez em 24h"></div>
+          <div class="form-group"><label>Categoria</label><input type="text" class="form-input" id="dicaCategoria" placeholder="Ex: Tráfego Pago, Identidade, Vendas..."></div>
+          <div class="form-group"><label>URL do vídeo / link *</label><input type="url" class="form-input" id="dicaUrl" placeholder="https://youtube.com/watch?v=..."></div>
+          <div class="form-group"><label>Descrição</label><textarea class="form-textarea" id="dicaDesc" style="min-height:60px" placeholder="Breve descrição..."></textarea></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="addDica()">Publicar</button></div>
         </div>
       </div>
-      <div id="criarIdentidadePanel" style="display:none">
-        <div style="display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start">
-          <div class="card">
-            <div class="card-title">Dados do Evento</div>
-            <div class="form-group"><label>Nome do Evento *</label><input type="text" class="form-input" id="idNome" placeholder="Ex: Rock 2000 — A Festa"></div>
-            <div class="form-group"><label>Tipo</label><select class="form-select" id="idTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-            <div class="form-group"><label>Tema / Gênero Musical</label><input type="text" class="form-input" id="idTema" placeholder="Ex: Rock anos 2000"></div>
-            <div class="form-group"><label>Público</label><input type="text" class="form-input" id="idPublico" placeholder="Ex: Jovens 25-35 anos"></div>
-            <div class="form-group"><label>Vibe</label><input type="text" class="form-input" id="idVibe" placeholder="Ex: Nostálgica, energética..."></div>
-            <div class="btn-row"><button class="btn btn-primary" onclick="runModule('identidade','idResultado',{nome:'idNome',tipo:'idTipo',tema:'idTema',publico:'idPublico',vibe:'idVibe'},this)">🎨 Gerar Identidade Completa</button></div>
-          </div>
-          <div id="idResultado"><div class="empty"><span class="empty-icon">🎨</span><p>Preencha e gere a identidade</p></div></div>
-        </div>
-      </div>
+      <div id="dicasGrid"></div>
     </div>
 
-    <!-- ══════ MÓDULOS ══════ -->
-    <div class="page" id="page-publico">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
-        <div class="card">
-          <div class="card-title">Dados do Evento</div>
-          <div class="form-group"><label>Nome</label><input type="text" class="form-input" id="pubNome" placeholder="Opcional"></div>
-          <div class="form-group"><label>Tipo *</label><select class="form-select" id="pubTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-          <div class="form-group"><label>Tema / Gênero</label><input type="text" class="form-input" id="pubTema" placeholder="Ex: MPB, Rock anos 80"></div>
-          <div class="form-group"><label>Cidade</label><input type="text" class="form-input" id="pubCidade" placeholder="Ex: São Paulo"></div>
-          <div class="form-group"><label>Faixa etária estimada</label><input type="text" class="form-input" id="pubFaixa" placeholder="Ex: 30-45 anos"></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="runModule('publico','pubResultado',{nome:'pubNome',tipo:'pubTipo',tema:'pubTema',cidade:'pubCidade',faixaEtaria:'pubFaixa'},this)">👥 Analisar Público</button></div>
-        </div>
-        <div id="pubResultado"><div class="empty"><span class="empty-icon">👥</span><p>Preencha e analise o público</p></div></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-lancamento">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
-        <div class="card">
-          <div class="card-title">Dados do Evento</div>
-          <div class="form-group"><label>Nome</label><input type="text" class="form-input" id="lanNome" placeholder="Opcional"></div>
-          <div class="form-group"><label>Tipo *</label><select class="form-select" id="lanTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-          <div class="form-grid2">
-            <div class="form-group"><label>Data do Evento *</label><input type="date" class="form-input" id="lanData"></div>
-            <div class="form-group"><label>Capacidade</label><input type="number" class="form-input" id="lanCapacidade" placeholder="300"></div>
-          </div>
-          <div class="form-group"><label>Local / Cidade</label><input type="text" class="form-input" id="lanLocal" placeholder="Ex: Bar do João, SP"></div>
-          <div class="form-grid2">
-            <div class="form-group"><label>Preço médio (R$)</label><input type="text" class="form-input" id="lanPreco" placeholder="60"></div>
-            <div class="form-group"><label>Nº de Lotes</label><select class="form-select" id="lanLotes"><option>3</option><option>4</option><option selected>5</option></select></div>
-          </div>
-          <div class="form-group"><label>Início das vendas</label><input type="date" class="form-input" id="lanInicioVendas"></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="runModule('lancamento','lanResultado',{nome:'lanNome',tipo:'lanTipo',data:'lanData',local:'lanLocal',capacidade:'lanCapacidade',preco:'lanPreco',dataLancamento:'lanInicioVendas',qtdLotes:'lanLotes'},this)">🚀 Gerar Estratégia</button></div>
-        </div>
-        <div id="lanResultado"><div class="empty"><span class="empty-icon">🚀</span><p>Preencha e gere a estratégia</p></div></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-campanha">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
-        <div class="card">
-          <div class="card-title">Dados do Evento</div>
-          <div class="form-group"><label>Nome</label><input type="text" class="form-input" id="camNome" placeholder="Opcional"></div>
-          <div class="form-group"><label>Tipo</label><select class="form-select" id="camTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-          <div class="form-group"><label>Tema</label><input type="text" class="form-input" id="camTema" placeholder="Ex: Rock anos 2000"></div>
-          <div class="form-group"><label>Data do Evento *</label><input type="date" class="form-input" id="camDataEvento"></div>
-          <div class="form-group"><label>Início das vendas</label><input type="date" class="form-input" id="camDataLan"></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="runModule('campanha','camResultado',{nome:'camNome',tipo:'camTipo',tema:'camTema',dataEvento:'camDataEvento',dataLancamento:'camDataLan'},this)">📅 Gerar Campanha 30 Dias</button></div>
-        </div>
-        <div id="camResultado"><div class="empty"><span class="empty-icon">📅</span><p>Preencha e gere o calendário</p></div></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-criativo">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
-        <div class="card">
-          <div class="card-title">Dados do Evento</div>
-          <div class="form-group"><label>Nome</label><input type="text" class="form-input" id="crtNome" placeholder="Opcional"></div>
-          <div class="form-group"><label>Tipo *</label><select class="form-select" id="crtTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-          <div class="form-group"><label>Gênero / Tema</label><input type="text" class="form-input" id="crtTema" placeholder="Ex: MPB dos anos 80"></div>
-          <div class="form-group"><label>Artistas / Atrações</label><input type="text" class="form-input" id="crtArtistas" placeholder="Ex: Caetano, Djavan..."></div>
-          <div class="form-group"><label>Público e faixa etária</label><input type="text" class="form-input" id="crtPublico" placeholder="Ex: 35-55 anos, nostálgicos"></div>
-          <div class="form-grid2">
-            <div class="form-group"><label>Cidade</label><input type="text" class="form-input" id="crtLocal" placeholder="São Paulo"></div>
-            <div class="form-group"><label>Data</label><input type="date" class="form-input" id="crtData"></div>
-          </div>
-          <div class="form-group"><label>Preço do ingresso (R$)</label><input type="text" class="form-input" id="crtPreco" placeholder="80"></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="runModule('criativo','crtResultado',{nome:'crtNome',tipo:'crtTipo',tema:'crtTema',artistas:'crtArtistas',publico:'crtPublico',local:'crtLocal',data:'crtData',preco:'crtPreco'},this)">🎬 Gerar Roteiros</button></div>
-        </div>
-        <div id="crtResultado"><div class="empty"><span class="empty-icon">🎬</span><p>Preencha e gere os roteiros</p></div></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-conteudo">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
-        <div class="card">
-          <div class="card-title">Dados do Evento</div>
-          <div class="form-group"><label>Nome</label><input type="text" class="form-input" id="conNome" placeholder="Opcional"></div>
-          <div class="form-group"><label>Tipo *</label><select class="form-select" id="conTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-          <div class="form-group"><label>Tema / Artistas</label><input type="text" class="form-input" id="conTema" placeholder="Ex: MPB, Rock, Jazz"></div>
-          <div class="form-group"><label>Fase atual</label><select class="form-select" id="conFase"><option>Aquecimento (antes do anúncio)</option><option>Revelação do evento</option><option>Abertura de vendas — 1º lote</option><option>Virada de lote</option><option>Reta final — últimos 7 dias</option><option>Pós-evento</option></select></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="runModule('conteudo','conResultado',{nome:'conNome',tipo:'conTipo',tema:'conTema',fase:'conFase'},this)">📱 Gerar Conteúdo</button></div>
-        </div>
-        <div id="conResultado"><div class="empty"><span class="empty-icon">📱</span><p>Preencha e gere sugestões</p></div></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-vendas">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
-        <div class="card">
-          <div class="card-title">Dados do Evento</div>
-          <div class="form-group"><label>Nome</label><input type="text" class="form-input" id="venNome" placeholder="Opcional"></div>
-          <div class="form-group"><label>Tipo *</label><select class="form-select" id="venTipo"><option value="">Selecione...</option><option>Show de releitura / tributo</option><option>Festa temática / balada</option><option>Stand-up comedy</option><option>Casa de show / jazz / MPB ao vivo</option><option>Festival</option><option>Tardezinha / Happy hour</option><option>Roda de samba / pagode</option><option>Teatro / espetáculo</option><option>Festa LGBT+</option><option>Outro</option></select></div>
-          <div class="form-group"><label>Tema</label><input type="text" class="form-input" id="venTema" placeholder="Ex: Rock anos 2000"></div>
-          <div class="form-group"><label>Preço dos ingressos (R$)</label><input type="text" class="form-input" id="venPreco" placeholder="Ex: 60 / 80 / 100"></div>
-          <div class="form-group"><label>Diferenciais / Benefícios</label><textarea class="form-textarea" id="venBeneficios" style="min-height:70px" placeholder="Ex: Open bar, área VIP, estacionamento..."></textarea></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="runModule('vendas','venResultado',{nome:'venNome',tipo:'venTipo',tema:'venTema',preco:'venPreco',beneficios:'venBeneficios'},this)">💰 Gerar Kit de Vendas</button></div>
-        </div>
-        <div id="venResultado"><div class="empty"><span class="empty-icon">💰</span><p>Preencha e gere o kit</p></div></div>
-      </div>
+    <!-- ══════ SUB-USUÁRIOS ══════ -->
+    <div class="page" id="page-subusuarios">
+      <div id="subUsuariosContent"></div>
     </div>
 
     <!-- ══════ CHAT ══════ -->
@@ -586,12 +529,9 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <div class="chat-wrap">
         <div class="chat-header">
           <div class="chat-online"></div>
-          <div>
-            <div class="chat-title">Chat da Equipe</div>
-            <div class="chat-sub">Comunicação interna entre todos os usuários</div>
-          </div>
+          <div><div class="chat-title">Chat da Equipe</div><div class="chat-sub" id="chatSubTitle">Comunicação interna</div></div>
         </div>
-        <div class="chat-messages" id="chatMessages"><div class="empty" style="padding:32px"><span class="empty-icon">💬</span><p>Carregando mensagens...</p></div></div>
+        <div class="chat-messages" id="chatMessages"><div class="empty" style="padding:32px"><span class="empty-icon">💬</span><p>Carregando...</p></div></div>
         <div class="chat-input-row">
           <input class="chat-input" id="chatInput" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}">
           <button class="chat-send" onclick="sendChat()">➤</button>
@@ -612,13 +552,10 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       </div>
       <div class="card">
         <div class="tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>Login</th><th>Nome</th><th>Plano</th><th>Uso</th><th>Status</th><th>Ações</th></tr></thead>
-            <tbody id="userTbody"></tbody>
-          </table>
+          <table class="tbl"><thead><tr><th>Login</th><th>Nome</th><th>Plano</th><th>Uso</th><th>Status</th><th>Ações</th></tr></thead><tbody id="userTbody"></tbody></table>
         </div>
       </div>
-      <div style="margin-top:16px;font-size:11px;color:var(--text3);text-align:center">© 2025 Workamusic — Sistema Lota — Todos os direitos reservados</div>
+      <div style="margin-top:16px;font-size:11px;color:var(--text3);text-align:center">© 2025 Workamusic — Sistema Lota</div>
     </div>
 
     <!-- ══════ PERFIL ══════ -->
@@ -627,6 +564,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
         <div class="card">
           <div class="card-title">Dados da Conta</div>
           <div class="form-group"><label>Nome de Exibição</label><input type="text" class="form-input" id="profDisplay"></div>
+          <div class="form-group"><label>Cargo / Função</label><input type="text" class="form-input" id="profCargo" placeholder="Ex: Produtor, Designer, Social Media..."></div>
           <div class="form-group"><label>Senha Atual</label><input type="password" class="form-input" id="profOld" placeholder="Necessário para alterar a senha"></div>
           <div class="form-grid2">
             <div class="form-group"><label>Nova Senha</label><input type="password" class="form-input" id="profNew"></div>
@@ -669,6 +607,42 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <div class="form-group"><label>Limite</label><input type="number" class="form-input" id="editLimit" min="1"></div>
     </div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('editModal')">Cancelar</button><button class="btn btn-primary" onclick="updateUser()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- MODAL ADD SUB-USUÁRIO -->
+<div class="modal-overlay" id="addSubModal" onclick="if(event.target===this)closeModal('addSubModal')">
+  <div class="modal">
+    <h2>➕ Adicionar Membro da Equipe</h2>
+    <div class="form-grid2"><div class="form-group"><label>Login *</label><input type="text" class="form-input" id="subName"></div><div class="form-group"><label>Senha *</label><input type="password" class="form-input" id="subPass"></div></div>
+    <div class="form-group"><label>Nome de Exibição</label><input type="text" class="form-input" id="subDisplay"></div>
+    <div class="form-group"><label>Cargo / Função</label><input type="text" class="form-input" id="subCargo" placeholder="Ex: Designer, Social Media, Vendas..."></div>
+    <div class="form-group"><label>Nível de Acesso</label>
+      <select class="form-select" id="subRole">
+        <option value="leitor">👁️ Leitor — só visualiza projetos e chat</option>
+        <option value="editor">✏️ Editor — visualiza e edita projetos</option>
+        <option value="total">⭐ Acesso Total — tudo exceto gerenciar equipe</option>
+      </select>
+    </div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('addSubModal')">Cancelar</button><button class="btn btn-primary" onclick="criarSubUser()">Adicionar</button></div>
+  </div>
+</div>
+
+<!-- MODAL EDIT SUB-USUÁRIO -->
+<div class="modal-overlay" id="editSubModal" onclick="if(event.target===this)closeModal('editSubModal')">
+  <div class="modal">
+    <h2>✏️ Editar Membro</h2>
+    <input type="hidden" id="editSubId">
+    <div class="form-group"><label>Nome de Exibição</label><input type="text" class="form-input" id="editSubDisplay"></div>
+    <div class="form-group"><label>Cargo / Função</label><input type="text" class="form-input" id="editSubCargo"></div>
+    <div class="form-group"><label>Nível de Acesso</label>
+      <select class="form-select" id="editSubRole">
+        <option value="leitor">👁️ Leitor</option>
+        <option value="editor">✏️ Editor</option>
+        <option value="total">⭐ Acesso Total</option>
+      </select>
+    </div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('editSubModal')">Cancelar</button><button class="btn btn-primary" onclick="updateSubUser()">Salvar</button></div>
   </div>
 </div>
 
@@ -750,7 +724,13 @@ function initApp(){
   document.getElementById('stPlano').textContent=(currentUser.plan||'basic').toUpperCase();
   if(projs.length){ document.getElementById('projBadge').style.display='inline'; document.getElementById('projBadge').textContent=projs.length; }
   if(currentUser.isAdmin){ document.getElementById('nav-admin').style.display='flex'; document.getElementById('adminSection').style.display='block'; }
+  // Sub-usuários — mostrar para planos PRO e Unlimited
+  if(['pro','unlimited'].includes(currentUser.plan||'basic') && !currentUser.isSubUser){
+    document.getElementById('nav-subusuarios').style.display='flex';
+    if(!currentUser.isAdmin){ document.getElementById('adminSection').style.display='block'; }
+  }
   document.getElementById('profDisplay').value=currentUser.displayName||currentUser.name;
+  if(document.getElementById('profCargo')) document.getElementById('profCargo').value=currentUser.cargo||'';
 }
 
 // ─── NAVIGATION ────────────────────────────────────────────
@@ -758,13 +738,9 @@ const PAGE_META={
   home:{title:'Dashboard',sub:'Bem-vindo ao Lota — Workamusic',back:false},
   projetos:{title:'Projetos',sub:'Todos os seus projetos criados',back:false},
   'projeto-detalhe':{title:'Projeto',sub:'',back:true},
-  criar:{title:'Criar Evento',sub:'Módulo 01 — Nome e identidade',back:true},
-  publico:{title:'Análise de Público',sub:'Módulo 02 — Quem compra e por que',back:true},
-  lancamento:{title:'Estratégia de Lançamento',sub:'Módulo 03 — Lotes e escassez',back:true},
-  campanha:{title:'Campanha 30 Dias',sub:'Módulo 04 — Ações diárias',back:true},
-  criativo:{title:'Criativo para Tráfego',sub:'Módulo 05 — Roteiros de vídeo',back:true},
-  conteudo:{title:'Conteúdo para Redes',sub:'Módulo 06 — Posts e stories',back:true},
-  vendas:{title:'Central de Vendas',sub:'Módulo 07 — Scripts e objeções',back:true},
+  criar:{title:'Novo Projeto',sub:'Montagem passo a passo — do nome ao lançamento',back:false},
+  dicas:{title:'Direcionamento e Dicas',sub:'Conteúdo exclusivo Workamusic',back:false},
+  subusuarios:{title:'Minha Equipe',sub:'Gerencie os membros da sua conta',back:false},
   chat:{title:'Chat da Equipe',sub:'Comunicação interna',back:false},
   admin:{title:'Gerenciar Usuários',sub:'Controle de acessos',back:false},
   perfil:{title:'Meu Perfil',sub:'Configurações da conta',back:false},
@@ -786,6 +762,9 @@ function goPage(id, navEl){
   backBtn.classList.toggle('show', meta.back&&_pageHistory.length>0);
   if(id==='projetos') renderProjects();
   if(id==='admin'){ loadAdminUsers().then(renderAdmin); }
+  if(id==='dicas') loadDicas();
+  if(id==='subusuarios') renderSubUsuarios();
+  if(id==='criar') fluxoResetar();
   if(id==='chat'){ loadChat(); if(!_chatPollInterval) _chatPollInterval=setInterval(loadChat,8000); }
   else{ if(_chatPollInterval){ clearInterval(_chatPollInterval); _chatPollInterval=null; } }
   closeSidebar();
@@ -896,6 +875,7 @@ function openProject(id){
   const roi=custo>0?Math.round(((receita-custo)/custo)*100):0;
   const roiColor=roi>=0?'var(--green)':'var(--red)';
 
+  document.getElementById('projetoDetalheContent').dataset.projId=id;
   document.getElementById('projetoDetalheContent').innerHTML=`
     <div class="proj-page-header">
       <div class="proj-page-icon">${TIPO_ICONS[p.tipo]||'📄'}</div>
@@ -905,6 +885,8 @@ function openProject(id){
 
     <div class="tabs" id="projTabs">
       <div class="tab active" onclick="switchProjTab('visao',this)">📋 Visão Geral</div>
+      <div class="tab" onclick="switchProjTab('banner',this)">🎨 Banner</div>
+      <div class="tab" onclick="switchProjTab('insumos',this)">📎 Insumos</div>
       <div class="tab" onclick="switchProjTab('metricas',this)">📊 Métricas</div>
       <div class="tab" onclick="switchProjTab('roi',this)">💰 ROI</div>
       <div class="tab" onclick="switchProjTab('meta',this)">📡 API Meta</div>
@@ -920,6 +902,17 @@ function openProject(id){
         <div class="result-text" id="projResultText">${esc(p.resultado||'')}</div>
       </div>
     </div>
+
+    <!-- BANNER -->
+    <div id="projTabBanner" style="display:none">
+      <div id="banner-inline-container"></div>
+    </div>
+
+    <!-- INSUMOS -->
+    <div id="projTabInsumos" style="display:none">
+      <div id="insumos-container"></div>
+    </div>
+
 
     <!-- MÉTRICAS -->
     <div id="projTabMetricas" style="display:none">
@@ -1013,11 +1006,26 @@ function openProject(id){
 }
 
 function switchProjTab(tab, el){
-  ['visao','metricas','roi','meta'].forEach(t=>{ const e=document.getElementById('projTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(e) e.style.display='none'; });
+  ['visao','banner','insumos','metricas','roi','meta'].forEach(t=>{ const e=document.getElementById('projTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(e) e.style.display='none'; });
   const target=document.getElementById('projTab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   if(target) target.style.display='block';
   el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  // Lazy load
+  if(tab==='banner'){
+    const bc=document.getElementById('banner-inline-container');
+    if(bc&&!bc.innerHTML.trim()){
+      const p=(_ud?.projects||[]).find(x=>document.getElementById('projetoDetalheContent').dataset.projId===x.id);
+      if(p) bc.innerHTML=renderBannerNoDetalhe(p.nome||p.tipo||'Evento',p.tipo||'',p.cores);
+    }
+  }
+  if(tab==='insumos'){
+    const ic=document.getElementById('insumos-container');
+    if(ic&&!ic.innerHTML.trim()){
+      const pid=document.getElementById('projetoDetalheContent').dataset.projId;
+      if(pid) loadInsumos(pid).then(ins=>renderInsumos(pid,ins,ic));
+    }
+  }
 }
 
 async function saveMetrics(projectId){
@@ -1215,7 +1223,10 @@ async function salvarPerfil(){
   const ok=document.getElementById('profMsg'), err=document.getElementById('profErr');
   [ok,err].forEach(e=>{e.style.display='none';});
   if(newPass&&newPass!==confPass){ err.textContent='As senhas não coincidem.'; err.style.display='block'; return; }
-  const body={}; if(displayName) body.displayName=displayName;
+  const cargo=document.getElementById('profCargo')?.value?.trim();
+  const body={};
+  if(displayName) body.displayName=displayName;
+  if(cargo!==undefined) body.cargo=cargo;
   if(newPass){ body.currentPassword=oldPass; body.newPassword=newPass; }
   try{
     const r=await api('PATCH','/api/auth/profile',body);
@@ -1243,6 +1254,359 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function copyText(id){
   const t=document.getElementById(id)?.textContent||'';
   navigator.clipboard.writeText(t).then(()=>toast('Copiado!','ok')).catch(()=>{ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Copiado!','ok'); });
+}
+
+// ─── FLUXO DE PROJETO ─────────────────────────────────────
+let fluxoState={etapa:1,tema:'',tipo:'',vibe:'',publico:'',nomeEscolhido:'',genero:'',artistas:'',identidadeEscolhida:null,moduloAtual:0,projetoId:null,etapasConcluidas:{},cores:{primaria:'#D97706',secundaria:'#1A1714',texto:'#F5F0E8'}};
+const MODULOS_FLUXO=[
+  {id:'publico',    titulo:'Módulo 2 — Análise de Público',        desc:'Quem compra, por que vai sair de casa e como segmentar no Instagram', emoji:'👥'},
+  {id:'lancamento', titulo:'Módulo 3 — Estratégia de Lançamento',   desc:'Lotes, escassez, antecipação e revelação do evento', emoji:'🚀'},
+  {id:'campanha',   titulo:'Módulo 4 — Campanha 30 Dias',           desc:'Ação específica para cada dia do lançamento ao pós-evento', emoji:'📅'},
+  {id:'criativo',   titulo:'Módulo 5 — Criativo para Tráfego',      desc:'Roteiros de vídeo 15-30s para Instagram', emoji:'🎬'},
+  {id:'conteudo',   titulo:'Módulo 6 — Conteúdo para Redes',        desc:'Posts, reels, stories e mecânicas de engajamento', emoji:'📱'},
+  {id:'vendas',     titulo:'Módulo 7 — Central de Vendas',          desc:'Scripts de WhatsApp, objeções e simulador', emoji:'💰'},
+];
+const TOTAL_ETAPAS=4+MODULOS_FLUXO.length;
+
+function fluxoResetar(){
+  fluxoState={etapa:1,tema:'',tipo:'',vibe:'',publico:'',nomeEscolhido:'',genero:'',artistas:'',identidadeEscolhida:null,moduloAtual:0,projetoId:null,etapasConcluidas:{},cores:{primaria:'#D97706',secundaria:'#1A1714',texto:'#F5F0E8'}};
+  ['fluxo-etapa-1','fluxo-etapa-2','fluxo-etapa-3','fluxo-etapa-4','fluxo-etapa-modulo'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  const e1=document.getElementById('fluxo-etapa-1'); if(e1) e1.style.display='block';
+  fluxoAtualizarProgress();
+}
+
+function fluxoAtualizarProgress(){
+  const el=document.getElementById('etapaProgress');
+  const label=document.getElementById('etapaLabel');
+  if(!el||!label) return;
+  el.innerHTML=Array.from({length:TOTAL_ETAPAS},(_,i)=>{
+    const done=i+1<fluxoState.etapa, active=i+1===fluxoState.etapa;
+    return'<div style="flex:1;height:6px;border-radius:3px;background:'+(done?'var(--green)':active?'var(--primary)':'var(--border)')+';transition:background .3s"></div>';
+  }).join('');
+  label.textContent='Etapa '+fluxoState.etapa+' de '+TOTAL_ETAPAS;
+}
+
+function fluxoIrEtapa(n){
+  ['fluxo-etapa-1','fluxo-etapa-2','fluxo-etapa-3','fluxo-etapa-4','fluxo-etapa-modulo'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  if(n>=5){
+    const em=document.getElementById('fluxo-etapa-modulo'); if(em) em.style.display='block';
+    fluxoState.moduloAtual=n-5;
+    fluxoRenderModulo();
+  } else {
+    const en=document.getElementById('fluxo-etapa-'+n); if(en) en.style.display='block';
+  }
+  fluxoState.etapa=n;
+  fluxoAtualizarProgress();
+}
+
+async function fluxoGerarNomes(){
+  const tema=document.getElementById('f-tema')?.value?.trim();
+  const tipo=document.getElementById('f-tipo')?.value;
+  if(!tema||!tipo){ toast('Preencha o tema e o tipo do evento.','err'); return; }
+  fluxoState.tema=tema; fluxoState.tipo=tipo;
+  fluxoState.vibe=document.getElementById('f-vibe')?.value?.trim()||'';
+  fluxoState.publico=document.getElementById('f-publico')?.value?.trim()||'';
+  const btn=document.getElementById('btnGerarNomes');
+  if(btn) btn.disabled=true;
+  loading(true,'Gerando nomes...','A IA está criando 5 opções');
+  try{
+    const d=await api('POST','/api/evento/criar-nome',{tema,tipo,vibe:fluxoState.vibe,publico:fluxoState.publico,_tipo:'Nome',_nome:tema.slice(0,40)});
+    fluxoState.projetoId=d.projectId;
+    const opcoes=d.result.split(/---+/).filter(s=>s.trim()&&s.toLowerCase().includes('nome:'));
+    const el=document.getElementById('fluxo-nomes-opcoes');
+    if(!el) return;
+    el.innerHTML=opcoes.length?opcoes.map((op,i)=>{
+      const nome=(op.match(/Nome:\s*(.+)/i)||[])[1]?.trim()||'Opção '+(i+1);
+      const tagline=(op.match(/Tagline:\s*(.+)/i)||[])[1]?.trim()||'';
+      const conceito=(op.match(/Conceito:\s*([\s\S]*?)(?:Mecânica:|$)/i)||[])[1]?.trim().slice(0,200)||'';
+      const mec=(op.match(/Mecânica.*?:\s*(.+)/i)||[])[1]?.trim()||'';
+      return'<div onclick="fluxoSelecionarNome(\''+nome.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;margin-bottom:2px" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+        +'<span style="width:28px;height:28px;border-radius:7px;background:var(--primary-bg);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">'+(i+1)+'</span>'
+        +'<div style="font-size:16px;font-weight:800;color:var(--text)">'+esc(nome)+'</div></div>'
+        +(tagline?'<div style="font-size:12px;color:var(--primary);margin-bottom:6px;font-style:italic">'+esc(tagline)+'</div>':'')
+        +(conceito?'<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px">'+esc(conceito)+'</div>':'')
+        +(mec?'<span style="font-size:11px;color:var(--green);background:var(--green-bg);border:1px solid rgba(22,163,74,.15);border-radius:6px;padding:3px 9px">💡 '+esc(mec)+'</span>':'')
+        +'<div style="margin-top:10px;font-size:11px;font-weight:600;color:var(--primary)">Clique para selecionar →</div></div>';
+    }).join(''):'<p style="color:var(--text3)">Não foi possível gerar opções. Tente novamente.</p>';
+    fluxoIrEtapa(2);
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+  finally{ if(btn) btn.disabled=false; loading(false); }
+}
+
+function fluxoSelecionarNome(nome){
+  fluxoState.nomeEscolhido=nome;
+  const el=document.getElementById('f-nome-selecionado'); if(el) el.textContent=nome;
+  fluxoIrEtapa(3);
+  toast('Nome "'+nome+'" selecionado!','ok');
+}
+
+async function fluxoGerarIdentidade(){
+  const genero=document.getElementById('f-genero')?.value?.trim()||'';
+  const artistas=document.getElementById('f-artistas')?.value?.trim()||'';
+  fluxoState.genero=genero; fluxoState.artistas=artistas;
+  loading(true,'Gerando identidades...','A IA está criando 3 opções de identidade visual');
+  try{
+    const d=await api('POST','/api/evento/identidade',{nome:fluxoState.nomeEscolhido,tipo:fluxoState.tipo,tema:genero||fluxoState.tema,publico:fluxoState.publico,vibe:fluxoState.vibe,_tipo:'Identidade',_nome:fluxoState.nomeEscolhido,_eventoId:fluxoState.projetoId});
+    const partes=d.result.split(/(?:OPÇÃO|IDENTIDADE)\s+\d+/i).filter(s=>s.trim().length>50);
+    const el=document.getElementById('fluxo-id-opcoes');
+    if(!el){ loading(false); return; }
+    const opcList=partes.length?partes.slice(0,3):[d.result];
+    el.innerHTML=opcList.map((parte,i)=>{
+      const hexes=parte.match(/#[0-9A-Fa-f]{6}/g)||[];
+      const paleta=hexes.slice(0,4);
+      return'<div onclick="fluxoSelecionarId('+i+',\''+parte.slice(0,200).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ')+'\')" style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+        +'<span style="width:28px;height:28px;border-radius:7px;background:var(--primary-bg);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">'+(i+1)+'</span>'
+        +'<div style="font-size:14px;font-weight:700;color:var(--text)">Identidade '+(i+1)+'</div>'
+        +(paleta.length?'<div style="display:flex;gap:4px;margin-left:auto">'+paleta.map(c=>'<div title="'+c+'" style="width:20px;height:20px;border-radius:4px;background:'+c+';border:1px solid var(--border)"></div>').join('')+'</div>':'')
+        +'</div>'
+        +'<div style="font-size:12px;color:var(--text2);line-height:1.7;max-height:100px;overflow:hidden">'+esc(parte.slice(0,350))+'...</div>'
+        +'<div style="margin-top:10px;font-size:11px;font-weight:600;color:var(--primary)">Clique para selecionar →</div>'
+        +'</div>';
+    }).join('');
+    fluxoIrEtapa(4);
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+  finally{ loading(false); }
+}
+
+function fluxoSelecionarId(idx, texto){
+  const hexes=texto.match(/#[0-9A-Fa-f]{6}/g)||[];
+  if(hexes[0]) fluxoState.cores.primaria=hexes[0];
+  if(hexes[1]) fluxoState.cores.secundaria=hexes[1];
+  if(hexes[2]) fluxoState.cores.texto=hexes[2];
+  fluxoState.identidadeEscolhida=texto;
+  fluxoState.etapa=5; fluxoState.moduloAtual=0;
+  fluxoIrEtapa(5);
+  toast('Identidade selecionada! Completando os módulos...','ok');
+}
+
+function gerarBannerSVG(nome,tipo,c1,c2,ct){
+  const palavras=(nome||'').split(' ');
+  const l1=palavras.slice(0,Math.ceil(palavras.length/2)).join(' ');
+  const l2=palavras.slice(Math.ceil(palavras.length/2)).join(' ');
+  const fs1=l1.length>14?34:l1.length>10?42:52;
+  const fs2=l2.length>14?26:l2.length>10?32:40;
+  const adj=(hex)=>{ try{ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); const a=v=>Math.min(255,v+30).toString(16).padStart(2,'0'); return'#'+a(r)+a(g)+a(b); }catch(e){ return hex; }};
+  return'<svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;border-radius:12px;box-shadow:var(--shadow-lg)">'
+  +'<defs><linearGradient id="svgbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="'+c2+'"/><stop offset="100%" stop-color="'+adj(c2)+'"/></linearGradient></defs>'
+  +'<rect width="600" height="400" fill="url(#svgbg)"/>'
+  +'<circle cx="520" cy="70" r="140" fill="'+c1+'" opacity="0.07"/>'
+  +'<circle cx="80" cy="330" r="90" fill="'+c1+'" opacity="0.05"/>'
+  +'<rect x="0" y="0" width="5" height="400" fill="'+c1+'"/>'
+  +'<rect x="0" y="375" width="600" height="2" fill="'+c1+'" opacity="0.35"/>'
+  +'<text x="32" y="55" font-family="system-ui,sans-serif" font-size="10" letter-spacing="4" fill="'+c1+'" opacity="0.85">'+esc((tipo||'').toUpperCase())+'</text>'
+  +'<text x="32" y="'+(l2?150:195)+'" font-family="system-ui,sans-serif" font-size="'+fs1+'" font-weight="900" fill="'+ct+'">'+esc(l1)+'</text>'
+  +(l2?'<text x="32" y="210" font-family="system-ui,sans-serif" font-size="'+fs2+'" font-weight="900" fill="'+c1+'">'+esc(l2)+'</text>':'')
+  +'<rect x="32" y="245" width="60" height="3" fill="'+c1+'"/>'
+  +'<rect x="0" y="345" width="600" height="55" fill="'+c1+'" opacity="0.1"/>'
+  +'<text x="32" y="380" font-family="system-ui,sans-serif" font-size="13" fill="'+ct+'" opacity="0.65">📅 Data · 📍 Local · 🎟️ Ingressos disponíveis</text>'
+  +'<text x="568" y="380" font-family="system-ui,sans-serif" font-size="9" fill="'+ct+'" opacity="0.4" text-anchor="end">Workamusic</text>'
+  +'</svg>';
+}
+
+function renderBannerNoDetalhe(nome,tipo,cores){
+  const c1=(cores&&cores.primaria)||'#D97706';
+  const c2=(cores&&cores.secundaria)||'#1A1714';
+  const ct=(cores&&cores.texto)||'#F5F0E8';
+  return'<div>'+gerarBannerSVG(nome,tipo,c1,c2,ct)+'</div>'
+    +'<p style="margin-top:8px;font-size:11px;color:var(--text3)">⚠️ Referência visual automática. Use como base para o designer criar a arte final.</p>';
+}
+
+function fluxoRenderModulo(){
+  const mod=MODULOS_FLUXO[fluxoState.moduloAtual];
+  if(!mod){ fluxoConcluir(); return; }
+  const tEl=document.getElementById('moduloAtualTitulo');
+  const dEl=document.getElementById('moduloAtualDesc');
+  const fEl=document.getElementById('moduloAtualForm');
+  if(tEl) tEl.textContent=mod.emoji+' '+mod.titulo;
+  if(dEl) dEl.textContent=mod.desc;
+  if(!fEl) return;
+  const n=fluxoState.nomeEscolhido, tp=fluxoState.tipo, tm=fluxoState.genero||fluxoState.tema;
+  const btnPrev='<button class="btn btn-outline" onclick="fluxoIrEtapa('+(fluxoState.etapa-1)+')" style="margin-right:8px">← Voltar</button>';
+  const forms={
+    publico:'<div class="card"><div class="form-group"><label>Cidade / Região</label><input type="text" class="form-input" id="mod-cidade" placeholder="Ex: São Paulo"></div><div class="form-group"><label>Faixa etária estimada</label><input type="text" class="form-input" id="mod-faixa" placeholder="Ex: 30-45 anos"></div><div id="mod-resultado"></div><div class="btn-row">'+btnPrev+'<button class="btn btn-primary" onclick="fluxoRunMod(\'publico\')">👥 Analisar →</button></div></div>',
+    lancamento:'<div class="card"><div class="form-grid2"><div class="form-group"><label>Data do Evento *</label><input type="date" class="form-input" id="mod-data"></div><div class="form-group"><label>Capacidade</label><input type="number" class="form-input" id="mod-cap" placeholder="300"></div></div><div class="form-group"><label>Local</label><input type="text" class="form-input" id="mod-local" placeholder="Ex: Bar do João, SP"></div><div class="form-grid2"><div class="form-group"><label>Preço (R$)</label><input type="text" class="form-input" id="mod-preco" placeholder="60"></div><div class="form-group"><label>Lotes</label><select class="form-select" id="mod-lotes"><option>3</option><option>4</option><option selected>5</option></select></div></div><div class="form-group"><label>Início das vendas</label><input type="date" class="form-input" id="mod-lan"></div><div id="mod-resultado"></div><div class="btn-row">'+btnPrev+'<button class="btn btn-primary" onclick="fluxoRunMod(\'lancamento\')">🚀 Gerar Estratégia →</button></div></div>',
+    campanha:'<div class="card"><div class="form-group"><label>Data do Evento *</label><input type="date" class="form-input" id="mod-data-ev"></div><div class="form-group"><label>Início das vendas</label><input type="date" class="form-input" id="mod-data-lan"></div><div id="mod-resultado"></div><div class="btn-row">'+btnPrev+'<button class="btn btn-primary" onclick="fluxoRunMod(\'campanha\')">📅 Gerar Campanha →</button></div></div>',
+    criativo:'<div class="card"><div class="form-group"><label>Artistas</label><input type="text" class="form-input" id="mod-art" value="'+esc(fluxoState.artistas)+'" placeholder="Caetano, Djavan..."></div><div class="form-grid2"><div class="form-group"><label>Cidade</label><input type="text" class="form-input" id="mod-cid" placeholder="São Paulo"></div><div class="form-group"><label>Data</label><input type="date" class="form-input" id="mod-dt"></div></div><div class="form-group"><label>Preço (R$)</label><input type="text" class="form-input" id="mod-pr" placeholder="80"></div><div id="mod-resultado"></div><div class="btn-row">'+btnPrev+'<button class="btn btn-primary" onclick="fluxoRunMod(\'criativo\')">🎬 Gerar Roteiros →</button></div></div>',
+    conteudo:'<div class="card"><div class="form-group"><label>Fase do Lançamento</label><select class="form-select" id="mod-fase"><option>Aquecimento</option><option>Revelação do evento</option><option>Abertura de vendas — 1º lote</option><option>Virada de lote</option><option>Reta final — últimos 7 dias</option><option>Pós-evento</option></select></div><div id="mod-resultado"></div><div class="btn-row">'+btnPrev+'<button class="btn btn-primary" onclick="fluxoRunMod(\'conteudo\')">📱 Gerar Conteúdo →</button></div></div>',
+    vendas:'<div class="card"><div class="form-group"><label>Preço dos ingressos (R$)</label><input type="text" class="form-input" id="mod-vp" placeholder="Ex: 60 / 80 / 100"></div><div class="form-group"><label>Diferenciais</label><textarea class="form-textarea" id="mod-vb" style="min-height:60px" placeholder="Ex: Open bar, VIP..."></textarea></div><div id="mod-resultado"></div><div class="btn-row">'+btnPrev+'<button class="btn btn-primary" onclick="fluxoRunMod(\'vendas\')">💰 Gerar Kit de Vendas →</button></div></div>',
+  };
+  fEl.innerHTML=forms[mod.id]||'';
+}
+
+async function fluxoRunMod(endpoint){
+  const n=fluxoState.nomeEscolhido, tp=fluxoState.tipo, tm=fluxoState.genero||fluxoState.tema;
+  const gv=(id)=>document.getElementById(id)?.value?.trim()||'';
+  const bodyMap={
+    publico:{nome:n,tipo:tp,tema:tm,cidade:gv('mod-cidade'),faixaEtaria:gv('mod-faixa')},
+    lancamento:{nome:n,tipo:tp,data:gv('mod-data'),local:gv('mod-local'),capacidade:gv('mod-cap'),preco:gv('mod-preco'),dataLancamento:gv('mod-lan'),qtdLotes:gv('mod-lotes')},
+    campanha:{nome:n,tipo:tp,tema:tm,dataEvento:gv('mod-data-ev'),dataLancamento:gv('mod-data-lan')},
+    criativo:{nome:n,tipo:tp,tema:tm,artistas:gv('mod-art'),publico:fluxoState.publico,local:gv('mod-cid'),data:gv('mod-dt'),preco:gv('mod-pr')},
+    conteudo:{nome:n,tipo:tp,tema:tm,fase:gv('mod-fase')},
+    vendas:{nome:n,tipo:tp,tema:tm,preco:gv('mod-vp'),beneficios:gv('mod-vb')},
+  };
+  const body={...bodyMap[endpoint]||{},_tipo:endpoint,_nome:n,_eventoId:fluxoState.projetoId};
+  loading(true,'Gerando '+endpoint+'...','A IA está trabalhando');
+  try{
+    const d=await api('POST','/api/evento/'+endpoint,body);
+    const resEl=document.getElementById('mod-resultado');
+    if(resEl){
+      resEl.innerHTML='<div class="result-block" style="margin-top:16px"><div class="result-label"><span>Resultado</span><button class="copy-btn" onclick="copyText(\'mod-res-txt\')">Copiar</button></div><div class="result-text" id="mod-res-txt">'+esc(d.result)+'</div></div>';
+      const nextIdx=fluxoState.moduloAtual+1;
+      const nb=document.createElement('div'); nb.className='btn-row';
+      if(nextIdx<MODULOS_FLUXO.length) nb.innerHTML='<button class="btn btn-green" onclick="fluxoProximoModulo()">→ Próximo: '+MODULOS_FLUXO[nextIdx].emoji+' '+MODULOS_FLUXO[nextIdx].titulo.split('—')[1].trim()+'</button>';
+      else nb.innerHTML='<button class="btn btn-green" onclick="fluxoConcluir()">🎉 Projeto Concluído → Ver Projeto</button>';
+      resEl.appendChild(nb);
+    }
+    fluxoState.etapasConcluidas[endpoint]=true;
+    if(!fluxoState.projetoId) fluxoState.projetoId=d.projectId;
+    currentUser.used=(currentUser.used||0)+1;
+    await loadUD();
+    toast('Módulo concluído!','ok');
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+  finally{ loading(false); }
+}
+
+function fluxoProximoModulo(){ fluxoState.moduloAtual++; fluxoState.etapa=5+fluxoState.moduloAtual; fluxoIrEtapa(fluxoState.etapa); }
+
+function fluxoConcluir(){
+  const pid=fluxoState.projetoId;
+  toast('🎉 Projeto completo!','ok');
+  fluxoResetar();
+  goPage('projetos',document.getElementById('nav-projetos'));
+  setTimeout(()=>{ if(pid) openProject(pid); },400);
+}
+
+// ─── DICAS ─────────────────────────────────────────────────
+async function loadDicas(){
+  try{
+    const d=await api('GET','/api/dicas');
+    const dicas=d.dicas||[];
+    const isAdm=currentUser?.isAdmin;
+    const panelEl=document.getElementById('dicasAdminPanel');
+    if(panelEl) panelEl.style.display=isAdm?'block':'none';
+    const el=document.getElementById('dicasGrid');
+    if(!el) return;
+    if(!dicas.length){ el.innerHTML='<div class="empty"><span class="empty-icon">🎓</span><p>'+(isAdm?'Nenhum conteúdo publicado. Adicione acima.':'Nenhum conteúdo disponível.')+'</p></div>'; return; }
+    const cats={};
+    dicas.forEach(d=>{ if(!cats[d.categoria]) cats[d.categoria]=[]; cats[d.categoria].push(d); });
+    el.innerHTML=Object.entries(cats).map(([cat,items])=>
+      '<div style="margin-bottom:24px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><div style="width:3px;height:14px;background:var(--primary);border-radius:2px"></div>'+esc(cat)+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">'
+      +items.map(dica=>'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;transition:all .2s" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+        +'<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">📺 '+esc(dica.titulo)+'</div>'
+        +(dica.descricao?'<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:10px">'+esc(dica.descricao)+'</div>':'')
+        +'<div style="display:flex;gap:8px;align-items:center">'
+        +'<a href="'+dica.url+'" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">▶ Assistir</a>'
+        +(isAdm?'<button class="btn btn-danger btn-sm" onclick="deleteDica(\''+dica.id+'\')">🗑️</button>':'')
+        +'</div></div>'
+      ).join('')+'</div></div>'
+    ).join('');
+  }catch(e){}
+}
+
+async function addDica(){
+  const titulo=document.getElementById('dicaTitulo').value.trim();
+  const url=document.getElementById('dicaUrl').value.trim();
+  if(!titulo||!url){ toast('Título e URL obrigatórios.','err'); return; }
+  try{
+    await api('POST','/api/dicas',{titulo,url,categoria:document.getElementById('dicaCategoria').value.trim()||'Geral',descricao:document.getElementById('dicaDesc').value.trim()});
+    ['dicaTitulo','dicaUrl','dicaCategoria','dicaDesc'].forEach(id=>document.getElementById(id).value='');
+    await loadDicas(); toast('Publicado!','ok');
+  }catch(e){ toast(e.message,'err'); }
+}
+
+async function deleteDica(id){
+  if(!confirm('Remover?')) return;
+  try{ await api('DELETE','/api/dicas/'+id); await loadDicas(); }catch(e){ toast(e.message,'err'); }
+}
+
+// ─── SUB-USUÁRIOS ─────────────────────────────────────────
+async function renderSubUsuarios(){
+  const plan=currentUser.plan||'basic';
+  const limites={basic:0,pro:3,unlimited:10};
+  const maxSubs=limites[plan]||0;
+  let subs=[];
+  try{ const d=await api('GET','/api/subusuarios'); subs=d||[]; }catch(e){}
+  const el=document.getElementById('subUsuariosContent');
+  if(!el) return;
+  const roleLabel={leitor:'👁️ Leitor',editor:'✏️ Editor',total:'⭐ Acesso Total'};
+  el.innerHTML='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">'
+    +'<div><div style="font-size:15px;font-weight:800;color:var(--text)">Minha Equipe</div>'
+    +'<div style="font-size:12px;color:var(--text3)">Plano '+plan.toUpperCase()+' — '+subs.length+'/'+maxSubs+' membros</div></div>'
+    +(maxSubs>0&&subs.length<maxSubs?'<button class="btn btn-primary" onclick="openAddSubModal()">+ Adicionar Membro</button>':'')
+    +(maxSubs===0?'<div style="font-size:12px;color:var(--red);background:var(--red-bg);padding:6px 12px;border-radius:8px">Plano Basic não suporta equipe. Faça upgrade.</div>':'')
+    +'</div>'
+    +'<div style="height:6px;background:var(--border);border-radius:3px;margin-top:12px;overflow:hidden"><div style="width:'+(maxSubs>0?Math.round((subs.length/maxSubs)*100):0)+'%;height:100%;background:var(--primary);border-radius:3px"></div></div></div>'
+    +(subs.length?'<div style="display:flex;flex-direction:column;gap:10px">'+subs.map(s=>'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px">'
+      +'<div style="width:40px;height:40px;border-radius:10px;background:var(--primary-bg);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--primary)">'+esc((s.displayName||s.name).charAt(0).toUpperCase())+'</div>'
+      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--text)">'+esc(s.displayName||s.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--text3)">@'+esc(s.name)+(s.cargo?' · '+esc(s.cargo):'')+'</div></div>'
+      +'<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--primary-bg);color:var(--primary);border:1px solid var(--primary-border)">'+roleLabel[s.subRole||'leitor']+'</span>'
+      +'<div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEditSubModal(\''+s.id+'\',\''+esc(s.displayName||s.name)+'\',\''+esc(s.cargo||'')+'\',\''+s.subRole+'\')">Editar</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="removeSubUser(\''+s.id+'\')">✕</button></div></div>'
+    ).join('')+'</div>'
+    :'<div class="empty"><span class="empty-icon">👥</span><p>Nenhum membro ainda.</p></div>');
+}
+
+function openAddSubModal(){ ['subName','subPass','subDisplay','subCargo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('subRole').value='leitor'; document.getElementById('addSubModal').classList.add('show'); }
+async function criarSubUser(){
+  const name=document.getElementById('subName').value.trim();
+  const pass=document.getElementById('subPass').value.trim();
+  if(!name||!pass){ toast('Login e senha obrigatórios.','err'); return; }
+  try{ await api('POST','/api/subusuarios',{name,password:pass,displayName:document.getElementById('subDisplay').value.trim()||name,cargo:document.getElementById('subCargo').value.trim(),role:document.getElementById('subRole').value}); closeModal('addSubModal'); renderSubUsuarios(); toast('Membro adicionado!','ok'); }
+  catch(e){ toast(e.message,'err'); }
+}
+function openEditSubModal(id,display,cargo,role){ document.getElementById('editSubId').value=id; document.getElementById('editSubDisplay').value=display; document.getElementById('editSubCargo').value=cargo; document.getElementById('editSubRole').value=role; document.getElementById('editSubModal').classList.add('show'); }
+async function updateSubUser(){
+  const id=document.getElementById('editSubId').value;
+  try{ await api('PATCH','/api/subusuarios/'+id,{displayName:document.getElementById('editSubDisplay').value.trim(),cargo:document.getElementById('editSubCargo').value.trim(),role:document.getElementById('editSubRole').value}); closeModal('editSubModal'); renderSubUsuarios(); toast('Atualizado!','ok'); }
+  catch(e){ toast(e.message,'err'); }
+}
+async function removeSubUser(id){ if(!confirm('Remover este membro?')) return; try{ await api('DELETE','/api/subusuarios/'+id); renderSubUsuarios(); toast('Removido.','ok'); }catch(e){ toast(e.message,'err'); } }
+
+// ─── INSUMOS ──────────────────────────────────────────────
+async function loadInsumos(projectId){ try{ const d=await api('GET','/api/insumos/'+projectId); return d.insumos||[]; }catch(e){ return []; } }
+function renderInsumos(projectId,insumos,container){
+  if(!container) return;
+  const tipoIcon={Link:'🔗',Pasta:'📁',Vídeo:'🎬',Imagem:'🖼️',Documento:'📄'};
+  container.innerHTML='<div class="card"><div class="card-title">Materiais e Links</div>'
+    +'<div class="form-group"><label>Título *</label><input type="text" class="form-input" id="ins-titulo" placeholder="Ex: Fotos da última festa, Drive de artes..."></div>'
+    +'<div class="form-grid2"><div class="form-group"><label>URL *</label><input type="url" class="form-input" id="ins-url" placeholder="https://drive.google.com/..."></div>'
+    +'<div class="form-group"><label>Tipo</label><select class="form-select" id="ins-tipo"><option>Link</option><option>Pasta</option><option>Vídeo</option><option>Imagem</option><option>Documento</option></select></div></div>'
+    +'<div class="form-group"><label>Descrição</label><input type="text" class="form-input" id="ins-desc" placeholder="Breve descrição..."></div>'
+    +'<button class="btn btn-primary btn-sm" onclick="addInsumo(\''+projectId+'\')">+ Adicionar Material</button></div>'
+    +(insumos.length?'<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">'+insumos.map(ins=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:20px">'+(tipoIcon[ins.tipo]||'🔗')+'</span>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">'+esc(ins.titulo)+'</div>'
+      +(ins.descricao?'<div style="font-size:11px;color:var(--text3)">'+esc(ins.descricao)+'</div>':'')
+      +'<div style="font-size:10px;color:var(--text3)">Por '+esc(ins.addedBy||'—')+'</div></div>'
+      +'<a href="'+ins.url+'" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">Abrir</a>'
+      +'<button class="btn btn-danger btn-sm" onclick="deleteInsumo(\''+projectId+'\',\''+ins.id+'\')">🗑️</button></div>'
+    ).join('')+'</div>'
+    :'<div class="empty" style="padding:20px"><span class="empty-icon" style="font-size:24px">📎</span><p>Nenhum material adicionado.</p></div>');
+}
+async function addInsumo(projectId){
+  const titulo=document.getElementById('ins-titulo')?.value?.trim();
+  const url=document.getElementById('ins-url')?.value?.trim();
+  if(!titulo||!url){ toast('Título e URL obrigatórios.','err'); return; }
+  try{
+    await api('POST','/api/insumos/'+projectId,{titulo,url,tipo:document.getElementById('ins-tipo')?.value||'Link',descricao:document.getElementById('ins-desc')?.value?.trim()||''});
+    const insumos=await loadInsumos(projectId);
+    renderInsumos(projectId,insumos,document.getElementById('insumos-container'));
+    toast('Material adicionado!','ok');
+  }catch(e){ toast(e.message,'err'); }
+}
+async function deleteInsumo(projectId,insumoId){
+  if(!confirm('Remover?')) return;
+  try{
+    await api('DELETE','/api/insumos/'+projectId+'/'+insumoId);
+    const insumos=await loadInsumos(projectId);
+    renderInsumos(projectId,insumos,document.getElementById('insumos-container'));
+  }catch(e){ toast(e.message,'err'); }
 }
 
 // ─── AUTO LOGIN ────────────────────────────────────────────
