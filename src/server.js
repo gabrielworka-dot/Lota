@@ -762,6 +762,128 @@ app.post('/api/banner/generate', auth, async (req, res) => {
   });
 });
 
+// ════════════════════════════════════════════════════════
+// FORNECEDORES
+// ════════════════════════════════════════════════════════
+app.get('/api/fornecedores', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  res.json({ fornecedores: ud.fornecedores || [] });
+});
+app.post('/api/fornecedores', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const { nome, categoria, telefone, email, instagram, site, observacoes } = req.body;
+  if (!nome) return res.status(400).json({ error: 'Nome obrigatório.' });
+  const ud = loadUD(uid);
+  if (!ud.fornecedores) ud.fornecedores = [];
+  ud.fornecedores.unshift({ id: uuidv4(), nome: sanitize(nome,100), categoria: sanitize(categoria||'Geral',60), telefone: sanitize(telefone||'',30), email: sanitize(email||'',100), instagram: sanitize(instagram||'',60), site: sanitize(site||'',200), observacoes: sanitize(observacoes||'',500), createdAt: new Date().toISOString() });
+  saveUD(uid, ud);
+  res.json({ ok: true });
+});
+app.patch('/api/fornecedores/:id', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const f = (ud.fornecedores||[]).find(x=>x.id===req.params.id);
+  if (!f) return res.status(404).json({ error: 'Não encontrado.' });
+  ['nome','categoria','telefone','email','instagram','site','observacoes'].forEach(k=>{ if(req.body[k]!==undefined) f[k]=sanitize(req.body[k],k==='observacoes'?500:200); });
+  f.updatedAt = new Date().toISOString();
+  saveUD(uid, ud);
+  res.json({ ok: true });
+});
+app.delete('/api/fornecedores/:id', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  ud.fornecedores = (ud.fornecedores||[]).filter(x=>x.id!==req.params.id);
+  saveUD(uid, ud);
+  res.json({ ok: true });
+});
+
+// ════════════════════════════════════════════════════════
+// WEBHOOK TICKETERIA — Sympla / Ingresse / Bileto / Eventbrite
+// ════════════════════════════════════════════════════════
+app.post('/api/webhook/ticketeria/:userId/:projectId', (req, res) => {
+  const { userId, projectId } = req.params;
+  const user = db.users.find(u => u.id === userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+  const ud = loadUD(userId);
+  if (!ud.metrics) ud.metrics = {};
+  if (!ud.metrics[projectId]) ud.metrics[projectId] = {};
+  const m = ud.metrics[projectId];
+  const b = req.body;
+  let qtd = 0, valor = 0;
+  if (b.order) {
+    qtd = parseInt(b.order.tickets_quantity||b.order.quantity||1);
+    valor = parseFloat(b.order.total_value||b.order.amount||0);
+    const st = (b.order.status||'').toLowerCase();
+    if (st && !['approved','confirmed','paid','complete','aprovado','confirmado'].includes(st))
+      return res.json({ ok:true, skipped:'status não aprovado' });
+  } else if (b.event && b.event.sold!==undefined) {
+    m.vendasOnline = parseInt(b.event.sold)||0;
+    m.receitaBruta = parseFloat(b.event.revenue)||m.receitaBruta||0;
+    m.ingressosVendidos = (m.vendasOnline||0)+(m.vendasOffline||0);
+    m.updatedAt = new Date().toISOString();
+    saveUD(userId, ud);
+    return res.json({ ok:true, source:'ingresse' });
+  } else {
+    qtd = parseInt(b.quantidade||b.quantity||0);
+    valor = parseFloat(b.valor||b.amount||b.value||0);
+  }
+  if (qtd > 0) {
+    m.vendasOnline = (m.vendasOnline||0)+qtd;
+    m.receitaBruta = (m.receitaBruta||0)+valor;
+    m.ingressosVendidos = (m.vendasOnline||0)+(m.vendasOffline||0);
+    if (!m.historicoVendas) m.historicoVendas = [];
+    m.historicoVendas.push({ qtd, valor, ts:new Date().toISOString(), fonte:'webhook' });
+    if (m.historicoVendas.length>500) m.historicoVendas = m.historicoVendas.slice(-500);
+    m.updatedAt = new Date().toISOString();
+    saveUD(userId, ud);
+  }
+  res.json({ ok:true, vendasOnline: m.vendasOnline });
+});
+
+app.get('/api/webhook/url/:projectId', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const host = req.get('host') || 'seu-app.railway.app';
+  const proto = req.get('x-forwarded-proto') || 'https';
+  res.json({ url:`${proto}://${host}/api/webhook/ticketeria/${uid}/${req.params.projectId}` });
+});
+
+// ════════════════════════════════════════════════════════
+// EVENTOS FINALIZADOS
+// ════════════════════════════════════════════════════════
+app.get('/api/eventos/finalizados', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const hoje = new Date();
+  let changed = false;
+  const finalizados = (ud.projects||[]).filter(p => {
+    if (p.status==='finalizado') return true;
+    const dtStr = p.dataEvento || p.modulos?.lancamento?.inputs?.data || p.modulos?.campanha?.inputs?.dataEvento;
+    if (dtStr) {
+      const dt = new Date(dtStr);
+      if (!isNaN(dt) && dt < hoje && p.status==='ativo') {
+        p.status='finalizado'; p.finalizadoEm=dt.toISOString(); changed=true; return true;
+      }
+    }
+    return false;
+  });
+  if (changed) saveUD(uid, ud);
+  res.json({ finalizados });
+});
+
+app.patch('/api/projeto/:projectId/finalizar-evento', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const proj = (ud.projects||[]).find(p=>p.id===req.params.projectId);
+  if (!proj) return res.status(404).json({ error: 'Não encontrado.' });
+  proj.status='finalizado';
+  proj.finalizadoEm=new Date().toISOString();
+  if (req.body.dataEvento) proj.dataEvento=req.body.dataEvento;
+  proj.updatedAt=new Date().toISOString();
+  saveUD(uid, ud);
+  res.json({ ok:true });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok', app: 'Lota v2.0', brand: 'Workamusic',
