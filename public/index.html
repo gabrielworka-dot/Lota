@@ -411,6 +411,8 @@ body{display:flex;overflow:hidden;}
     <div class="ni" id="nav-criar" onclick="gp('criar',this)"><span class="ni-ic">✨</span>Novo Projeto</div>
     <div class="sb-sec">Recursos</div>
     <div class="ni" id="nav-dicas" onclick="gp('dicas',this)"><span class="ni-ic">🎓</span>Dicas & Direcionamento</div>
+    <div class="ni" id="nav-fornecedores" onclick="gp('fornecedores',this)"><span class="ni-ic">🤝</span>Fornecedores</div>
+    <div class="ni" id="nav-finalizados" onclick="gp('finalizados',this)"><span class="ni-ic">🏁</span>Eventos Finalizados</div>
     <div class="sb-sec">Comunicação</div>
     <div class="ni" id="nav-chat" onclick="gp('chat',this)"><span class="ni-ic">💬</span>Chat da Equipe</div>
     <div class="sb-sec" id="adminSec" style="display:none">Administração</div>
@@ -447,12 +449,16 @@ body{display:flex;overflow:hidden;}
       <div class="sc"><div class="sc-ic">💬</div><div class="sc-n" id="stCh">0</div><div class="sc-l">Chat</div></div>
       <div class="sc"><div class="sc-ic">🏷️</div><div class="sc-n" id="stPl" style="font-size:16px;padding-top:5px">—</div><div class="sc-l">Plano</div></div>
     </div>
+
+    <!-- EVENTOS ATIVOS COM PROGRESSO DE VENDAS -->
+    <div id="dashEventosAtivos" style="margin-bottom:20px"></div>
+
     <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">Ferramentas disponíveis</div>
     <div class="mg">
       <div class="mc" onclick="gp('criar',document.getElementById('nav-criar'))"><div class="mn">01</div><div><div class="mt">Criar Evento do Zero</div><div class="md">Nome, identidade e todos os módulos num fluxo guiado passo a passo.</div></div></div>
-      <div class="mc" onclick="gp('projetos',document.getElementById('nav-projetos'))" style="border-color:var(--pb);background:var(--pbg)"><div class="mn" style="font-size:18px">📁</div><div><div class="mt" style="color:var(--p)">Ver Projetos</div><div class="md">Acesse projetos com métricas, ROI, banner e insumos.</div></div></div>
+      <div class="mc" onclick="gp('projetos',document.getElementById('nav-projetos'))" style="border-color:var(--pb);background:var(--pbg)"><div class="mn" style="font-size:18px">📁</div><div><div class="mt" style="color:var(--p)">Ver Projetos</div><div class="md">Acesse projetos com métricas, ROI, insumos e mais.</div></div></div>
+      <div class="mc" onclick="gp('fornecedores',document.getElementById('nav-fornecedores'))"><div class="mn">🤝</div><div><div class="mt">Fornecedores</div><div class="md">Contatos de DJ, iluminação, som, buffet e toda a cadeia de produção.</div></div></div>
       <div class="mc" onclick="gp('dicas',document.getElementById('nav-dicas'))"><div class="mn">🎓</div><div><div class="mt">Dicas Exclusivas</div><div class="md">Conteúdo exclusivo Workamusic para produtores de eventos.</div></div></div>
-      <div class="mc" onclick="gp('chat',document.getElementById('nav-chat'))"><div class="mn">💬</div><div><div class="mt">Chat da Equipe</div><div class="md">Comunicação interna em tempo real com todos da equipe.</div></div></div>
     </div>
   </div>
 
@@ -592,10 +598,39 @@ body{display:flex;overflow:hidden;}
     </div>
   </div>
 
+  <!-- ══ FORNECEDORES ══ -->
+  <div class="page" id="page-fornecedores">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div><div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Contatos</div></div>
+      <button class="btn bp" onclick="['fornEditId','fornNome','fornTel','fornEmail','fornInsta','fornSite','fornObs'].forEach(id=>document.getElementById(id).value='');document.getElementById('fornCat').value='Geral';document.getElementById('fornModalTit').textContent='🤝 Novo Fornecedor';document.getElementById('addFornModal').classList.add('show')">+ Adicionar Fornecedor</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" id="fornCatFilter">
+      <button class="btn bg btn-sm fcat-btn active" data-cat="" onclick="filtrarForn(this,'')">Todos</button>
+    </div>
+    <div id="fornGrid"></div>
+  </div>
+
+  <!-- ══ EVENTOS FINALIZADOS ══ -->
+  <div class="page" id="page-finalizados">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Eventos que já aconteceram ou foram encerrados manualmente.</div>
+    <div id="finalizadosGrid"></div>
+  </div>
+
 </div><!-- /main -->
 </div><!-- /app -->
 
 <!-- MODAIS -->
+<!-- MODAL FORNECEDOR -->
+<div class="mo" id="addFornModal" onclick="if(event.target===this)cm('addFornModal')">
+  <div class="modal"><h2 id="fornModalTit">🤝 Novo Fornecedor</h2>
+    <input type="hidden" id="fornEditId">
+    <div class="fg2"><div class="fg"><label>Nome *</label><input type="text" class="fi2" id="fornNome" placeholder="Ex: DJ Marcos Silva"></div><div class="fg"><label>Categoria</label><select class="fs" id="fornCat"><option>Geral</option><option>DJ / Música</option><option>Iluminação</option><option>Som</option><option>Decoração</option><option>Buffet / Alimentação</option><option>Segurança</option><option>Fotografia / Vídeo</option><option>Marketing / Design</option><option>Produção</option><option>Transporte</option><option>Outro</option></select></div></div>
+    <div class="fg2"><div class="fg"><label>Telefone / WhatsApp</label><input type="tel" class="fi2" id="fornTel" placeholder="(11) 99999-9999"></div><div class="fg"><label>E-mail</label><input type="email" class="fi2" id="fornEmail" placeholder="contato@email.com"></div></div>
+    <div class="fg2"><div class="fg"><label>Instagram</label><input type="text" class="fi2" id="fornInsta" placeholder="@perfil"></div><div class="fg"><label>Site</label><input type="url" class="fi2" id="fornSite" placeholder="https://site.com"></div></div>
+    <div class="fg"><label>Observações</label><textarea class="fta" id="fornObs" rows="2" placeholder="Preço médio, condições, notas..."></textarea></div>
+    <div class="ma"><button class="btn bg" onclick="cm('addFornModal')">Cancelar</button><button class="btn bp" onclick="salvarForn()">Salvar</button></div>
+  </div>
+</div>
 <div class="mo" id="addModal" onclick="if(event.target===this)cm('addModal')">
   <div class="modal"><h2>Novo Usuário</h2>
     <div class="fg2"><div class="fg"><label>Login *</label><input type="text" class="fi2" id="nwN"></div><div class="fg"><label>Senha *</label><input type="password" class="fi2" id="nwP"></div></div>
@@ -693,6 +728,8 @@ function initApp(){
   document.getElementById('profDisplay').value=CU.displayName||CU.name;
   if(document.getElementById('profCargo')) document.getElementById('profCargo').value=CU.cargo||'';
   fluxoResetar();
+  // Renderiza eventos ativos na dashboard
+  setTimeout(renderDashEventos, 200);
 }
 
 // ─── NAV ───────────────────────────────────────────────────
@@ -702,6 +739,8 @@ const PM={
   'projeto-detalhe':{t:'Projeto',s:'',bk:true},
   criar:{t:'Novo Projeto',s:'Fluxo guiado passo a passo',bk:false},
   dicas:{t:'Dicas & Direcionamento',s:'Conteúdo exclusivo Workamusic',bk:false},
+  fornecedores:{t:'Fornecedores',s:'Contatos e parceiros de produção',bk:false},
+  finalizados:{t:'Eventos Finalizados',s:'Histórico de eventos encerrados',bk:false},
   equipe:{t:'Minha Equipe',s:'Membros da conta',bk:false},
   chat:{t:'Chat da Equipe',s:'Comunicação interna',bk:false},
   admin:{t:'Usuários',s:'Controle de acessos',bk:false},
@@ -734,6 +773,8 @@ function gp(id,el){
   if(id==='admin') loadAU().then(renderAdmin);
   if(id==='dicas') loadDicas();
   if(id==='equipe') renderEquipe();
+  if(id==='fornecedores') loadFornecedores();
+  if(id==='finalizados') loadFinalizados();
   if(id==='chat'){loadChat();if(!_chatInt)_chatInt=setInterval(loadChat,8000);}
   else{if(_chatInt){clearInterval(_chatInt);_chatInt=null;}}
   if(id==='criar') fluxoResetar();
@@ -949,7 +990,7 @@ async function fluxoConcluir(){
   const pid=FS.projId;
   fluxoResetar();
   gp('projetos',document.getElementById('nav-projetos'));
-  setTimeout(()=>{if(pid) openProj(pid);},350);
+  setTimeout(()=>{if(pid) openProj(pid); renderDashEventos();},350);
 }
 
 // ─── PROJETOS ──────────────────────────────────────────────
@@ -973,7 +1014,7 @@ function renderProjects(){
 }
 
 // ─── PROJETO DETALHE ───────────────────────────────────────
-function openProj(id){
+function openProj(id,tab){
   const p=(UD?.projects||[]).find(x=>x.id===id);
   if(!p) return;
   const mods=p.modulos||{};
@@ -989,10 +1030,9 @@ function openProj(id){
   const el=document.getElementById('projDetalhe');
   el.dataset.pid=id;
   el.innerHTML=''
-    +'<div class="pdh"><div class="pdh-ic">🎪</div><div class="pdh-ti">'+esc(p.nome||'Projeto')+'</div><div class="pdh-me">'+esc(p.tipo||'Evento')+' · '+new Date(p.createdAt).toLocaleDateString('pt-BR')+(p.status==='ativo'?' · ✅ Ativo':'')+'</div></div>'
+    +'<div class="pdh"><div class="pdh-ic">🎪</div><div class="pdh-ti">'+esc(p.nome||'Projeto')+'</div><div class="pdh-me">'+esc(p.tipo||'Evento')+' · '+new Date(p.createdAt).toLocaleDateString('pt-BR')+(p.status==='ativo'?' · ✅ Ativo':p.status==='finalizado'?' · 🏁 Finalizado':'')+'</div></div>'
     +'<div class="tabs">'
     +'<div class="tab active" onclick="spTab(\'visao\',this)">📋 Visão</div>'
-    +'<div class="tab" onclick="spTab(\'banner\',this)">🎨 Banner</div>'
     +'<div class="tab" onclick="spTab(\'insumos\',this)">📎 Insumos</div>'
     +'<div class="tab" onclick="spTab(\'metricas\',this)">📊 Métricas</div>'
     +'<div class="tab" onclick="spTab(\'roi\',this)">💰 ROI</div>'
@@ -1005,28 +1045,37 @@ function openProj(id){
     +(Object.keys(mods).length===0?'<div class="empty"><span class="empty-ic">📝</span><p>Projeto em criação. Continue o fluxo.</p><div class="br" style="justify-content:center"><button class="btn bp" onclick="retomar(\''+id+'\')">Continuar Projeto →</button></div></div>':'')
     +'</div>'
 
-    // BANNER
-    +'<div id="ptBanner" style="display:none">'
-    +renderBanner(p.nome||'Evento',p.tipo||'',p.cores)
-    +'</div>'
-
     // INSUMOS
     +'<div id="ptInsumos" style="display:none"><div id="insContainer"></div></div>'
 
     // MÉTRICAS
     +'<div id="ptMetricas" style="display:none">'
-    +'<div class="met-g">'
-    +'<div class="met-c"><div class="met-l">Ingressos Vendidos</div><div class="met-v">'+inv+'</div><div class="met-s">Meta: '+meta+'</div></div>'
-    +'<div class="met-c"><div class="met-l">Progresso</div><div class="met-v" style="color:var(--p)">'+prog+'%</div><div style="height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden"><div style="width:'+prog+'%;height:100%;background:var(--p);border-radius:2px"></div></div></div>'
-    +'<div class="met-c"><div class="met-l">Receita Bruta</div><div class="met-v">R$'+rec.toLocaleString('pt-BR')+'</div></div>'
-    +'<div class="met-c"><div class="met-l">Vendas Online</div><div class="met-v">'+(metrics.vendasOnline||0)+'</div></div>'
-    +'<div class="met-c"><div class="met-l">Vendas Offline</div><div class="met-v">'+(metrics.vendasOffline||0)+'</div></div>'
-    +'<div class="met-c"><div class="met-l">Alcance</div><div class="met-v">'+((parseInt(metrics.alcanceCampanha)||0).toLocaleString('pt-BR'))+'</div></div>'
+    // Indicador de auto-sincronização ticketeria
+    +'<div style="background:var(--gbg);border:1px solid rgba(21,128,61,.2);border-radius:10px;padding:13px;margin-bottom:14px;display:flex;align-items:center;gap:12px">'
+    +'<span style="font-size:22px">🎟️</span>'
+    +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--green)">Sincronização automática com Ticketeria</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-top:2px">Configure o webhook abaixo e as vendas online serão atualizadas automaticamente.</div></div>'
+    +'<button class="btn bgreen btn-sm" onclick="verWebhook(\''+id+'\')">Ver URL</button>'
     +'</div>'
-    +'<div class="card"><div class="ct">Atualizar Métricas</div>'
-    +'<div class="fg3"><div class="fg"><label>Meta Ingressos</label><input type="number" class="fi2" id="mfMeta" value="'+(metrics.ingressosMeta||0)+'" min="0"></div><div class="fg"><label>Vendas Online</label><input type="number" class="fi2" id="mfOn" value="'+(metrics.vendasOnline||0)+'" min="0"></div><div class="fg"><label>Vendas Offline</label><input type="number" class="fi2" id="mfOff" value="'+(metrics.vendasOffline||0)+'" min="0"></div></div>'
-    +'<div class="fg3"><div class="fg"><label>Receita Bruta (R$)</label><input type="number" class="fi2" id="mfRec" value="'+(metrics.receitaBruta||0)+'" min="0"></div><div class="fg"><label>Custo Total (R$)</label><input type="number" class="fi2" id="mfCust" value="'+(metrics.custoTotal||0)+'" min="0"></div><div class="fg"><label>Custo Anúncio (R$)</label><input type="number" class="fi2" id="mfAnu" value="'+(metrics.custoAnuncio||0)+'" min="0"></div></div>'
-    +'<div class="fg3"><div class="fg"><label>Alcance</label><input type="number" class="fi2" id="mfAlc" value="'+(metrics.alcanceCampanha||0)+'" min="0"></div><div class="fg"><label>Seg. Antes</label><input type="number" class="fi2" id="mfSa" value="'+(metrics.seguidoresAntes||0)+'" min="0"></div><div class="fg"><label>Seg. Depois</label><input type="number" class="fi2" id="mfSd" value="'+(metrics.seguidoresDepois||0)+'" min="0"></div></div>'
+    +'<div id="webhookInfo" style="display:none;margin-bottom:14px"></div>'
+    // Cards de métricas
+    +'<div class="met-g">'
+    +'<div class="met-c"><div class="met-l">🎟️ Ingressos Vendidos</div><div class="met-v">'+inv+'</div><div class="met-s">Online: '+(metrics.vendasOnline||0)+' · Offline: '+(metrics.vendasOffline||0)+'</div></div>'
+    +'<div class="met-c"><div class="met-l">🎯 Progresso da Meta</div><div class="met-v" style="color:var(--p)">'+prog+'%</div><div style="height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden"><div style="width:'+prog+'%;height:100%;background:var(--p);border-radius:2px"></div></div></div>'
+    +'<div class="met-c"><div class="met-l">💰 Receita Bruta</div><div class="met-v">R$'+rec.toLocaleString('pt-BR')+'</div></div>'
+    +'<div class="met-c"><div class="met-l">📱 Vendas Online</div><div class="met-v">'+(metrics.vendasOnline||0)+'</div><div class="met-s">Via ticketeria / link</div></div>'
+    +'<div class="met-c"><div class="met-l">🏪 Vendas Offline</div><div class="met-v">'+(metrics.vendasOffline||0)+'</div><div class="met-s">Bilheteria / WhatsApp</div></div>'
+    +'<div class="met-c"><div class="met-l">📢 Alcance</div><div class="met-v">'+((parseInt(metrics.alcanceCampanha)||0).toLocaleString('pt-BR'))+'</div></div>'
+    +'</div>'
+    // Botão download Excel
+    +'<div style="margin-bottom:14px">'
+    +'<button class="btn bo" onclick="downloadExcel(\''+id+'\',\''+esc(p.nome||'Projeto')+'\')" style="display:flex;align-items:center;gap:8px">📥 Exportar Excel (.xlsx)</button>'
+    +'</div>'
+    // Formulário de atualização manual
+    +'<div class="card"><div class="ct">Atualizar Métricas Manualmente</div>'
+    +'<div class="fg3"><div class="fg"><label>Meta de Ingressos</label><input type="number" class="fi2" id="mfMeta" value="'+(metrics.ingressosMeta||0)+'" min="0"></div><div class="fg"><label>Vendas Online</label><input type="number" class="fi2" id="mfOn" value="'+(metrics.vendasOnline||0)+'" min="0"></div><div class="fg"><label>Vendas Offline</label><input type="number" class="fi2" id="mfOff" value="'+(metrics.vendasOffline||0)+'" min="0"></div></div>'
+    +'<div class="fg3"><div class="fg"><label>Receita Bruta (R$)</label><input type="number" class="fi2" id="mfRec" value="'+(metrics.receitaBruta||0)+'" min="0" step="0.01"></div><div class="fg"><label>Custo Total (R$)</label><input type="number" class="fi2" id="mfCust" value="'+(metrics.custoTotal||0)+'" min="0" step="0.01"></div><div class="fg"><label>Custo Anúncio (R$)</label><input type="number" class="fi2" id="mfAnu" value="'+(metrics.custoAnuncio||0)+'" min="0" step="0.01"></div></div>'
+    +'<div class="fg3"><div class="fg"><label>Alcance Campanha</label><input type="number" class="fi2" id="mfAlc" value="'+(metrics.alcanceCampanha||0)+'" min="0"></div><div class="fg"><label>Seg. Antes</label><input type="number" class="fi2" id="mfSa" value="'+(metrics.seguidoresAntes||0)+'" min="0"></div><div class="fg"><label>Seg. Depois</label><input type="number" class="fi2" id="mfSd" value="'+(metrics.seguidoresDepois||0)+'" min="0"></div></div>'
     +'<button class="btn bp" onclick="saveMet(\''+id+'\')">💾 Salvar Métricas</button></div>'
     +'</div>'
 
@@ -1057,12 +1106,13 @@ function openProj(id){
 
   PH.push('projetos');
   gp('projeto-detalhe');
-  // Load insumos lazy
   loadIns(id).then(ins=>renderIns(id,ins,document.getElementById('insContainer')));
+  // Abre aba específica se solicitado
+  if(tab){setTimeout(()=>{const tabEl=document.querySelector('.tabs .tab[onclick*="'+tab+'"]');if(tabEl)tabEl.click();},100);}
 }
 
 function spTab(tab,el){
-  ['Visao','Banner','Insumos','Metricas','Roi','Meta'].forEach(t=>{const e=document.getElementById('pt'+t);if(e)e.style.display='none';});
+  ['Visao','Insumos','Metricas','Roi','Meta'].forEach(t=>{const e=document.getElementById('pt'+t);if(e)e.style.display='none';});
   const e=document.getElementById('pt'+tab.charAt(0).toUpperCase()+tab.slice(1));if(e)e.style.display='block';
   el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
@@ -1181,6 +1231,7 @@ async function saveMet(id){
   const m={ingressosMeta:parseInt(document.getElementById('mfMeta')?.value)||0,vendasOnline:parseInt(document.getElementById('mfOn')?.value)||0,vendasOffline:parseInt(document.getElementById('mfOff')?.value)||0,receitaBruta:parseFloat(document.getElementById('mfRec')?.value)||0,custoTotal:parseFloat(document.getElementById('mfCust')?.value)||0,custoAnuncio:parseFloat(document.getElementById('mfAnu')?.value)||0,alcanceCampanha:parseInt(document.getElementById('mfAlc')?.value)||0,seguidoresAntes:parseInt(document.getElementById('mfSa')?.value)||0,seguidoresDepois:parseInt(document.getElementById('mfSd')?.value)||0};
   m.ingressosVendidos=(m.vendasOnline||0)+(m.vendasOffline||0);
   try{await api('PATCH','/api/metrics/'+id,m);if(!UD.metrics)UD.metrics={};UD.metrics[id]={...UD.metrics[id],...m};toast('Métricas salvas!','ok');setTimeout(()=>openProj(id),400);}catch(e){toast('Erro: '+e.message,'err');}
+  renderDashEventos();
 }
 
 // ─── META API ──────────────────────────────────────────────
@@ -1313,6 +1364,255 @@ document.addEventListener('DOMContentLoaded', () => {
     }, {passive:true});
   });
 });
+
+// ─── DASHBOARD — EVENTOS ATIVOS COM GRÁFICO ────────────────
+function renderDashEventos(){
+  const el=document.getElementById('dashEventosAtivos');
+  if(!el) return;
+  const ativos=(UD?.projects||[]).filter(p=>p.status==='ativo');
+  if(!ativos.length){ el.innerHTML=''; return; }
+  const hoje=new Date();
+  el.innerHTML='<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px">🎪 Eventos no Ar</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:8px">'
+    +ativos.map(p=>{
+      const m=UD?.metrics?.[p.id]||{};
+      const inv=parseInt(m.ingressosVendidos)||0;
+      const meta=parseInt(m.ingressosMeta)||0;
+      const rec=parseFloat(m.receitaBruta)||0;
+      const prog=meta>0?Math.min(100,Math.round((inv/meta)*100)):0;
+      const c=(p.cores&&p.cores.p)||'#C47B14';
+      // Calcula dias até o evento
+      const dtStr=p.dataEvento||p.modulos?.lancamento?.inputs?.data||p.modulos?.campanha?.inputs?.dataEvento;
+      const dias=dtStr?Math.ceil((new Date(dtStr)-hoje)/(1000*60*60*24)):null;
+      return'<div class="sc" style="cursor:pointer;border-left:3px solid '+c+';padding-left:14px" onclick="openProj(\''+p.id+'\',\'metricas\')">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">'+esc(p.nome||'Evento')+'</div>'
+        +(dias!==null?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(dias<=7?'var(--rbg)':dias<=30?'var(--pbg)':'var(--gbg)')+';color:'+(dias<=7?'var(--red)':dias<=30?'var(--p)':'var(--green)')+';white-space:nowrap">'+(dias>0?dias+'d':'Hoje')+'</span>':'')
+        +'</div>'
+        // Mini barra de progresso de ingressos
+        +'<div style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px"><span>Ingressos: '+inv+(meta?'/'+meta:'')+'</span><span>'+prog+'%</span></div>'
+        +'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+prog+'%;height:100%;background:'+c+';border-radius:3px;transition:width .5s"></div>'
+        +'</div></div>'
+        // Mini gráfico de barras SVG com histórico de vendas
+        +renderMiniChart(m,c)
+        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">Receita: <strong style="color:var(--text)">R$'+rec.toLocaleString('pt-BR')+'</strong></div>'
+        +'</div>';
+    }).join('')+'</div>';
+}
+
+function renderMiniChart(metrics,cor){
+  const hist=metrics.historicoVendas||[];
+  if(!hist.length){
+    // Sem histórico de webhook, mostra barra única
+    const on=parseInt(metrics.vendasOnline)||0;
+    const off=parseInt(metrics.vendasOffline)||0;
+    if(!on&&!off) return'<div style="font-size:10px;color:var(--text3)">Aguardando vendas...</div>';
+    const max=Math.max(on,off,1);
+    return'<div style="display:flex;align-items:flex-end;gap:3px;height:32px">'
+      +'<div style="flex:1;background:'+cor+';border-radius:2px 2px 0 0;opacity:.8;height:'+(on/max*100)+'%;min-height:2px" title="Online: '+on+'"></div>'
+      +'<div style="flex:1;background:'+cor+';border-radius:2px 2px 0 0;opacity:.4;height:'+(off/max*100)+'%;min-height:2px" title="Offline: '+off+'"></div>'
+      +'</div><div style="display:flex;gap:3px;margin-top:2px"><span style="font-size:9px;color:var(--text3);flex:1;text-align:center">Online</span><span style="font-size:9px;color:var(--text3);flex:1;text-align:center">Offline</span></div>';
+  }
+  // Agrupa por dia (últimos 7 dias)
+  const dias={};
+  const agora=new Date();
+  for(let i=6;i>=0;i--){const d=new Date(agora);d.setDate(d.getDate()-i);dias[d.toDateString()]=0;}
+  hist.slice(-200).forEach(h=>{const dk=new Date(h.ts).toDateString();if(dias[dk]!==undefined)dias[dk]+=h.qtd||0;});
+  const vals=Object.values(dias);
+  const max=Math.max(...vals,1);
+  const bars=vals.map((v,i)=>'<div style="flex:1;background:'+cor+';border-radius:2px 2px 0 0;opacity:'+(v>0?.85:.15)+';height:'+(v/max*100)+'%;min-height:2px" title="'+v+' vendas"></div>').join('');
+  return'<div style="display:flex;align-items:flex-end;gap:2px;height:32px">'+bars+'</div>'
+    +'<div style="font-size:9px;color:var(--text3);text-align:right;margin-top:2px">Últimos 7 dias</div>';
+}
+
+// ─── WEBHOOK TICKETERIA ────────────────────────────────────
+async function verWebhook(projId){
+  const el=document.getElementById('webhookInfo');
+  if(!el) return;
+  if(el.style.display!=='none'&&el.innerHTML){el.style.display='none';return;}
+  try{
+    const d=await api('GET','/api/webhook/url/'+projId);
+    el.style.display='block';
+    el.innerHTML='<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">🔗 URL do Webhook — cole na sua ticketeria</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">'
+      +'<code style="flex:1;font-family:monospace;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;word-break:break-all;color:var(--text)">'+esc(d.url)+'</code>'
+      +'<button class="btn bp btn-sm" onclick="navigator.clipboard.writeText(\''+esc(d.url)+'\').then(()=>toast(\'URL copiada!\',\'ok\'))">Copiar</button>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--text3);line-height:1.6">'
+      +'<strong>Sympla:</strong> Configurações do evento → Integrações → Webhook de vendas<br>'
+      +'<strong>Ingresse:</strong> Painel → Configurações → Notificações → Webhook URL<br>'
+      +'<strong>Bileto/Eventbrite:</strong> Configurações → Webhooks → Endpoint URL'
+      +'</div>'
+      +'</div>';
+  }catch(e){toast('Erro: '+e.message,'err');}
+}
+
+// ─── DOWNLOAD EXCEL ────────────────────────────────────────
+function downloadExcel(projId,nomeEvento){
+  const p=(UD?.projects||[]).find(x=>x.id===projId);
+  const m=UD?.metrics?.[projId]||{};
+  const on=parseInt(m.vendasOnline)||0;
+  const off=parseInt(m.vendasOffline)||0;
+  const inv=on+off;
+  const meta=parseInt(m.ingressosMeta)||0;
+  const rec=parseFloat(m.receitaBruta)||0;
+  const cust=parseFloat(m.custoTotal)||0;
+  const anu=parseFloat(m.custoAnuncio)||0;
+  const roi=cust>0?Math.round(((rec-cust)/cust)*100):0;
+  const alc=parseInt(m.alcanceCampanha)||0;
+  const cliq=parseInt(m.cliquesAnuncio)||0;
+  const sAnt=parseInt(m.seguidoresAntes)||0;
+  const sDep=parseInt(m.seguidoresDepois)||0;
+  // Gera CSV válido para Excel (separador ponto-e-vírgula para PT-BR)
+  const linhas=[
+    ['RELATÓRIO DE MÉTRICAS — LOTA'],
+    ['Evento',nomeEvento],
+    ['Data do Relatório',new Date().toLocaleDateString('pt-BR')],
+    [''],
+    ['MÉTRICA','VALOR'],
+    ['Meta de Ingressos',meta],
+    ['Vendas Online (ticketeria)',on],
+    ['Vendas Offline (bilheteria)',off],
+    ['Total de Ingressos Vendidos',inv],
+    ['Progresso da Meta (%)',meta>0?Math.round((inv/meta)*100)+'%':'—'],
+    [''],
+    ['Receita Bruta (R$)',rec.toFixed(2).replace('.',',')],
+    ['Custo Total (R$)',cust.toFixed(2).replace('.',',')],
+    ['Custo de Anúncios (R$)',anu.toFixed(2).replace('.',',')],
+    ['Lucro Líquido (R$)',(rec-cust).toFixed(2).replace('.',',')],
+    ['ROI (%)',roi+'%'],
+    ['Ticket Médio (R$)',inv>0?(rec/inv).toFixed(2).replace('.',','):'—'],
+    ['Custo por Ingresso (R$)',inv>0?(cust/inv).toFixed(2).replace('.',','):'—'],
+    [''],
+    ['Alcance da Campanha',alc.toLocaleString('pt-BR')],
+    ['Cliques no Anúncio',cliq.toLocaleString('pt-BR')],
+    ['Taxa de Conversão (%)',cliq>0?((inv/cliq)*100).toFixed(1)+'%':'—'],
+    [''],
+    ['Seguidores Antes do Evento',sAnt.toLocaleString('pt-BR')],
+    ['Seguidores Depois do Evento',sDep.toLocaleString('pt-BR')],
+    ['Crescimento de Seguidores',(sDep-sAnt).toLocaleString('pt-BR')],
+    [''],
+    ['© 2025 Workamusic — Sistema Lota',''],
+  ];
+  // Histórico de vendas por webhook
+  const hist=m.historicoVendas||[];
+  if(hist.length){
+    linhas.push(['']);
+    linhas.push(['HISTÓRICO DE VENDAS (WEBHOOK)','DATA','QTD','VALOR']);
+    hist.slice(-100).forEach(h=>linhas.push(['',new Date(h.ts).toLocaleDateString('pt-BR')+' '+new Date(h.ts).toLocaleTimeString('pt-BR'),h.qtd,(h.valor||0).toFixed(2).replace('.',',')]));
+  }
+  const csv=linhas.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(';')).join('\r\n');
+  const bom='\uFEFF'; // BOM para Excel reconhecer UTF-8
+  const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='lota-metricas-'+nomeEvento.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-'+new Date().toISOString().split('T')[0]+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('📥 Arquivo CSV exportado (abra no Excel)','ok');
+}
+
+// ─── FORNECEDORES ──────────────────────────────────────────
+let _fornAll=[];
+async function loadFornecedores(){
+  try{const d=await api('GET','/api/fornecedores');_fornAll=d.fornecedores||[];}catch(e){_fornAll=[];}
+  renderFornecedores(_fornAll);
+  // Monta filtro de categorias
+  const cats=[...new Set(_fornAll.map(f=>f.categoria||'Geral'))].sort();
+  const fEl=document.getElementById('fornCatFilter');
+  if(fEl) fEl.innerHTML='<button class="btn bg btn-sm fcat-btn active" onclick="filtrarForn(this,\'\')">Todos ('+_fornAll.length+')</button>'
+    +cats.map(c=>'<button class="btn bg btn-sm fcat-btn" onclick="filtrarForn(this,\''+esc(c)+'\')">'+esc(c)+'</button>').join('');
+}
+function filtrarForn(btn,cat){
+  document.querySelectorAll('.fcat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const lista=cat?_fornAll.filter(f=>(f.categoria||'Geral')===cat):_fornAll;
+  renderFornecedores(lista);
+}
+function renderFornecedores(lista){
+  const el=document.getElementById('fornGrid');if(!el)return;
+  if(!lista.length){el.innerHTML='<div class="empty"><span class="empty-ic">🤝</span><p>Nenhum fornecedor cadastrado.</p></div>';return;}
+  const catIcon={'DJ / Música':'🎵',Iluminação:'💡',Som:'🔊',Decoração:'🌸','Buffet / Alimentação':'🍽️',Segurança:'🛡️','Fotografia / Vídeo':'📸','Marketing / Design':'🎨',Produção:'⚙️',Transporte:'🚐',Geral:'🤝',Outro:'📋'};
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">'
+    +lista.map(f=>'<div class="card" style="position:relative">'
+      +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">'
+      +'<div style="width:40px;height:40px;border-radius:10px;background:var(--pbg);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'+(catIcon[f.categoria]||'🤝')+'</div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(f.nome)+'</div>'
+      +'<div style="font-size:10px;color:var(--p);background:var(--pbg);border:1px solid var(--pb);border-radius:10px;padding:2px 8px;display:inline-block;margin-top:3px">'+esc(f.categoria||'Geral')+'</div></div>'
+      +'</div>'
+      +(f.telefone?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:6px">📱 <a href="https://wa.me/'+f.telefone.replace(/\D/g,'')+'" target="_blank" style="color:var(--green);text-decoration:none">'+esc(f.telefone)+'</a></div>':'')
+      +(f.email?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <a href="mailto:'+esc(f.email)+'" style="color:var(--blue);text-decoration:none">'+esc(f.email)+'</a></div>':'')
+      +(f.instagram?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📷 <a href="https://instagram.com/'+esc(f.instagram.replace('@',''))+'" target="_blank" style="color:var(--text);text-decoration:none">'+esc(f.instagram)+'</a></div>':'')
+      +(f.observacoes?'<div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border);padding-top:8px;margin-top:8px;line-height:1.5">'+esc(f.observacoes)+'</div>':'')
+      +'<div style="display:flex;gap:6px;margin-top:10px">'
+      +'<button class="btn bp btn-sm" onclick="editarForn(\''+f.id+'\')">Editar</button>'
+      +'<button class="btn bdng btn-sm" onclick="deletarForn(\''+f.id+'\')">Remover</button>'
+      +'</div></div>'
+    ).join('')+'</div>';
+}
+function salvarForn(){
+  const id=gv('fornEditId');
+  const body={nome:gv('fornNome'),categoria:gv('fornCat'),telefone:gv('fornTel'),email:gv('fornEmail'),instagram:gv('fornInsta'),site:gv('fornSite'),observacoes:gv('fornObs')};
+  if(!body.nome){toast('Nome obrigatório.','err');return;}
+  const req=id?api('PATCH','/api/fornecedores/'+id,body):api('POST','/api/fornecedores',body);
+  req.then(()=>{cm('addFornModal');loadFornecedores();toast(id?'Fornecedor atualizado!':'Fornecedor adicionado!','ok');}).catch(e=>toast(e.message,'err'));
+}
+function editarForn(id){
+  const f=_fornAll.find(x=>x.id===id);if(!f)return;
+  document.getElementById('fornEditId').value=id;
+  document.getElementById('fornModalTit').textContent='✏️ Editar Fornecedor';
+  document.getElementById('fornNome').value=f.nome||'';
+  document.getElementById('fornCat').value=f.categoria||'Geral';
+  document.getElementById('fornTel').value=f.telefone||'';
+  document.getElementById('fornEmail').value=f.email||'';
+  document.getElementById('fornInsta').value=f.instagram||'';
+  document.getElementById('fornSite').value=f.site||'';
+  document.getElementById('fornObs').value=f.observacoes||'';
+  document.getElementById('addFornModal').classList.add('show');
+}
+async function deletarForn(id){if(!confirm('Remover este fornecedor?'))return;try{await api('DELETE','/api/fornecedores/'+id);loadFornecedores();toast('Removido.','ok');}catch(e){toast(e.message,'err');}}
+
+// ─── EVENTOS FINALIZADOS ───────────────────────────────────
+async function loadFinalizados(){
+  try{
+    const d=await api('GET','/api/eventos/finalizados');
+    const fin=d.finalizados||[];
+    const el=document.getElementById('finalizadosGrid');if(!el)return;
+    // Também auto-detecta da lista local
+    const hoje=new Date();
+    const localFin=(UD?.projects||[]).filter(p=>{
+      if(p.status==='finalizado') return true;
+      const dtStr=p.dataEvento||p.modulos?.lancamento?.inputs?.data||p.modulos?.campanha?.inputs?.dataEvento;
+      if(dtStr){const dt=new Date(dtStr);if(!isNaN(dt)&&dt<hoje&&p.status==='ativo')return true;}
+      return false;
+    });
+    const todos=[...new Map([...fin,...localFin].map(p=>[p.id,p])).values()];
+    if(!todos.length){el.innerHTML='<div class="empty"><span class="empty-ic">🏁</span><p>Nenhum evento finalizado ainda.</p></div>';return;}
+    el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">'
+      +todos.map(p=>{
+        const m=UD?.metrics?.[p.id]||{};
+        const inv=parseInt(m.ingressosVendidos)||0;
+        const rec=parseFloat(m.receitaBruta)||0;
+        const cust=parseFloat(m.custoTotal)||0;
+        const roi=cust>0?Math.round(((rec-cust)/cust)*100):0;
+        return'<div class="card" style="cursor:pointer;border-left:3px solid var(--green);opacity:.9" onclick="openProj(\''+p.id+'\')">'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+          +'<span style="font-size:24px">🏁</span>'
+          +'<div><div style="font-size:14px;font-weight:700;color:var(--text)">'+esc(p.nome||'Evento')+'</div>'
+          +'<div style="font-size:11px;color:var(--text3)">'+(p.finalizadoEm?'Finalizado em '+new Date(p.finalizadoEm).toLocaleDateString('pt-BR'):new Date(p.createdAt).toLocaleDateString('pt-BR'))+'</div></div>'
+          +'</div>'
+          +'<div style="display:flex;gap:12px;font-size:12px;color:var(--text2)">'
+          +'<span>🎟️ '+inv+' vendidos</span>'
+          +'<span>R$ '+rec.toLocaleString('pt-BR')+'</span>'
+          +(roi!==0?'<span style="color:'+(roi>=0?'var(--green)':'var(--red)')+'">'+(roi>=0?'+':'')+roi+'%</span>':'')
+          +'</div></div>';
+      }).join('')+'</div>';
+  }catch(e){toast('Erro: '+e.message,'err');}
+}
 
 // ─── AUTO LOGIN ────────────────────────────────────────────
 (async()=>{
