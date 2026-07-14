@@ -1019,12 +1019,15 @@ app.get('/api/mp/oauth/callback', async (req, res) => {
 
     const user = db.users.find(u => u.id === uid);
     if (user) {
+      // O Mercado Pago indica conta de teste pelo campo live_mode:false na resposta OAuth,
+      // não necessariamente pelo prefixo do token (contas de teste também podem retornar APP_USR-...)
+      const ehTeste = (tokenData.live_mode === false) || isTestToken(tokenData.access_token);
       user.mpAccount = {
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
         mpUserId: tokenData.user_id,
         publicKey: tokenData.public_key || '',
-        testMode: isTestToken(tokenData.access_token),
+        testMode: ehTeste,
         connectedAt: new Date().toISOString()
       };
       saveDB(db);
@@ -1246,7 +1249,7 @@ app.post('/api/public/checkout', rateLimit(60000, 20), async (req, res) => {
     });
     savePedidos(uid, peds);
 
-    res.json({ ok: true, pedidoId, init_point: mpData.init_point, sandbox_init_point: mpData.sandbox_init_point, testMode: isTestToken(producerToken) });
+    res.json({ ok: true, pedidoId, init_point: mpData.init_point, sandbox_init_point: mpData.sandbox_init_point, testMode: !!db.users.find(u => u.id === uid)?.mpAccount?.testMode });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
