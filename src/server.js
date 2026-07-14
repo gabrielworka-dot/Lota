@@ -78,6 +78,7 @@ function loadDB() {
 function saveDB(d) { try { fs.writeFileSync(DB_FILE, JSON.stringify(d, null, 2)); } catch(e) {} }
 let db = loadDB();
 if (!db.loginAttempts) db.loginAttempts = {};
+if (!db.ticketSlugs) db.ticketSlugs = {}; // slug -> { userId, projectId }
 if (!db.users.find(u => u.isAdmin)) { db.users.unshift(loadDB().users[0]); saveDB(db); }
 console.log(`✅ Banco carregado: ${db.users.length} usuário(s)`);
 
@@ -884,11 +885,444 @@ app.patch('/api/projeto/:projectId/finalizar-evento', auth, (req, res) => {
   res.json({ ok:true });
 });
 
+// ════════════════════════════════════════════════════════════
+// PLATAFORMA DE INGRESSOS — venda direta com Mercado Pago (Marketplace/Split)
+// ════════════════════════════════════════════════════════════
+const MP_TOKEN         = process.env.MP_ACCESS_TOKEN || ''; // opcional, fallback
+const MP_CLIENT_ID     = process.env.MP_CLIENT_ID || '';
+const MP_CLIENT_SECRET = process.env.MP_CLIENT_SECRET || '';
+const MP_API = 'https://api.mercadopago.com';
+const RESEND_API_KEY   = process.env.RESEND_API_KEY || '';
+const RESEND_FROM      = process.env.RESEND_FROM_EMAIL || 'Lota <onboarding@resend.dev>';
+if (db.marketplaceFeePercent === undefined) { db.marketplaceFeePercent = parseFloat(process.env.MP_MARKETPLACE_FEE_PERCENT) || 10; saveDB(db); }
+
+function slugify(str) {
+  return String(str || 'evento')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 40) || 'evento';
+}
+function gerarSlugUnico(nome) {
+  const base = slugify(nome);
+  let slug = base + '-' + Math.random().toString(36).slice(2, 7);
+  while (db.ticketSlugs[slug]) slug = base + '-' + Math.random().toString(36).slice(2, 7);
+  return slug;
+}
+function gerarCodigoTicket() {
+  return 'LT-' + uuidv4().split('-')[0].toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+function pedFile(uid) { return path.join(DATA_DIR, `pedidos_${uid}.json`); }
+function loadPedidos(uid) {
+  try { const f = pedFile(uid); if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8')); } catch(e) {}
+  return {};
+}
+function savePedidos(uid, d) { try { fs.writeFileSync(pedFile(uid), JSON.stringify(d)); } catch(e) {} }
+
+// Retorna o token de MP a usar para um produtor (conta própria via OAuth, ou fallback da plataforma)
+function tokenDoProdutor(userId) {
+  const u = db.users.find(x => x.id === userId);
+  return u?.mpAccount?.accessToken || '';
+}
+function isTestToken(token) { return /^TEST-/i.test(token || ''); }
+
+// ── Envio de e-mail via Resend ──
+async function enviarEmailIngressos(pedido, nomeEvento) {
+  if (!RESEND_API_KEY || !pedido.comprador?.email) return;
+  const ticketsHtml = (pedido.tickets || []).map(t => `
+    <div style="border:1px solid #2A2822;border-radius:10px;padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:16px;background:#161410;">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(t.codigo)}" width="90" height="90" style="border-radius:8px;background:#fff;padding:4px" />
+      <div>
+        <div style="font-family:monospace;font-weight:700;color:#E8961A;font-size:14px;">${t.codigo}</div>
+        <div style="font-size:12px;color:#A09880;margin-top:2px;">${t.loteNome}</div>
+      </div>
+    </div>`).join('');
+  const html = `
+    <div style="background:#0F0E0C;padding:32px 20px;font-family:Arial,sans-serif;color:#F0EDE8;">
+      <div style="max-width:480px;margin:0 auto;">
+        <div style="font-size:22px;font-weight:800;color:#E8961A;margin-bottom:4px;">🎪 Lota</div>
+        <p style="font-size:14px;color:#A09880;margin-bottom:24px;">Confirmação de compra — Workamusic</p>
+        <h2 style="font-size:18px;margin-bottom:6px;">Seu ingresso para</h2>
+        <p style="font-size:20px;font-weight:800;color:#fff;margin-bottom:20px;">${esc(nomeEvento)}</p>
+        <p style="font-size:13px;color:#A09880;margin-bottom:16px;">Olá ${esc(pedido.comprador.nome)}, seu pagamento foi aprovado! Aqui estão seus ingressos:</p>
+        ${ticketsHtml}
+        <p style="font-size:11px;color:#605848;margin-top:20px;">Apresente o QR Code na entrada do evento. Guarde este e-mail.</p>
+        <p style="font-size:10px;color:#605848;margin-top:24px;">© Workamusic — Vendido com Lota</p>
+      </div>
+    </div>`;
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({ from: RESEND_FROM, to: pedido.comprador.email, subject: `🎟️ Seus ingressos — ${nomeEvento}`, html })
+    });
+  } catch(e) { console.error('Erro ao enviar e-mail:', e.message); }
+}
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Processa aprovação de pagamento — gera tickets, atualiza métricas, envia e-mail
+async function processarPedidoAprovado(uid, projectId, pedido) {
+  const ud = loadUD(uid);
+  const proj = (ud.projects || []).find(p => p.id === projectId);
+  if (!proj) return;
+  pedido.tickets = [];
+  for (const it of pedido.itens) {
+    const lote = (proj.ingressos?.lotes || []).find(l => l.id === it.loteId);
+    const qtd = Math.max(1, parseInt(it.qtd) || 1);
+    if (lote) lote.vendidos = (lote.vendidos || 0) + qtd;
+    for (let i = 0; i < qtd; i++) pedido.tickets.push({ codigo: gerarCodigoTicket(), loteNome: lote?.nome || 'Ingresso', usado: false, usadoEm: null });
+  }
+  if (!ud.metrics) ud.metrics = {};
+  if (!ud.metrics[projectId]) ud.metrics[projectId] = {};
+  const m = ud.metrics[projectId];
+  m.vendasOnline = (m.vendasOnline || 0) + pedido.tickets.length;
+  m.receitaBruta = (m.receitaBruta || 0) + pedido.total;
+  m.ingressosVendidos = (m.vendasOnline || 0) + (m.vendasOffline || 0);
+  m.updatedAt = new Date().toISOString();
+  saveUD(uid, ud);
+  await enviarEmailIngressos(pedido, proj.nome);
+}
+
+// ════════════════════════════════════════════════════════════
+// OAUTH MERCADO PAGO — cada produtor conecta a própria conta
+// ════════════════════════════════════════════════════════════
+app.get('/api/mp/oauth/connect', auth, (req, res) => {
+  if (!MP_CLIENT_ID) return res.status(400).json({ error: 'Marketplace do Mercado Pago não configurado (MP_CLIENT_ID ausente). Peça ao administrador.' });
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const state = jwt.sign({ uid }, JWT_SECRET, { expiresIn: '15m' });
+  const host = req.get('host');
+  const proto = req.get('x-forwarded-proto') || 'https';
+  const redirectUri = `${proto}://${host}/api/mp/oauth/callback`;
+  const url = `https://auth.mercadopago.com/authorization?client_id=${MP_CLIENT_ID}&response_type=code&platform_id=mp&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  res.json({ url });
+});
+
+app.get('/api/mp/oauth/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    if (!code || !state) return res.status(400).send('Parâmetros inválidos.');
+    let uid;
+    try { uid = jwt.verify(state, JWT_SECRET).uid; } catch(e) { return res.status(400).send('Sessão expirada, tente conectar novamente.'); }
+
+    const host = req.get('host');
+    const proto = req.get('x-forwarded-proto') || 'https';
+    const redirectUri = `${proto}://${host}/api/mp/oauth/callback`;
+
+    const tokenResp = await fetch(`${MP_API}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: MP_CLIENT_ID, client_secret: MP_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: redirectUri })
+    });
+    const tokenData = await tokenResp.json();
+    if (!tokenResp.ok) return res.status(400).send('Erro ao conectar: ' + (tokenData.message || 'tente novamente'));
+
+    const user = db.users.find(u => u.id === uid);
+    if (user) {
+      user.mpAccount = {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        mpUserId: tokenData.user_id,
+        publicKey: tokenData.public_key || '',
+        testMode: isTestToken(tokenData.access_token),
+        connectedAt: new Date().toISOString()
+      };
+      saveDB(db);
+    }
+    res.send(`<html><body style="background:#0F0E0C;color:#F0EDE8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><div style="font-size:40px;margin-bottom:12px">✅</div><h2>Conta Mercado Pago conectada!</h2><p style="color:#A09880">Você já pode fechar esta janela e voltar ao Lota.</p></div></body></html>`);
+  } catch(e) {
+    res.status(500).send('Erro: ' + e.message);
+  }
+});
+
+app.get('/api/mp/status', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const user = db.users.find(u => u.id === uid);
+  const acc = user?.mpAccount;
+  res.json({ connected: !!acc?.accessToken, mpUserId: acc?.mpUserId || null, testMode: !!acc?.testMode, connectedAt: acc?.connectedAt || null, feePercent: db.marketplaceFeePercent });
+});
+
+app.post('/api/mp/disconnect', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const user = db.users.find(u => u.id === uid);
+  if (user) { delete user.mpAccount; saveDB(db); }
+  res.json({ ok: true });
+});
+
+// Admin — configurar % de comissão global da plataforma
+app.get('/api/admin/marketplace-fee', auth, adminOnly, (req, res) => res.json({ feePercent: db.marketplaceFeePercent }));
+app.patch('/api/admin/marketplace-fee', auth, adminOnly, (req, res) => {
+  const v = parseFloat(req.body.feePercent);
+  if (isNaN(v) || v < 0 || v > 50) return res.status(400).json({ error: 'Valor inválido (0-50%).' });
+  db.marketplaceFeePercent = v; saveDB(db);
+  res.json({ ok: true, feePercent: v });
+});
+
+// ── CONFIGURAR VENDA DE INGRESSOS (autenticado, dono do projeto) ──
+app.get('/api/projeto/:projectId/ingressos-config', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const proj = (ud.projects || []).find(p => p.id === req.params.projectId);
+  if (!proj) return res.status(404).json({ error: 'Projeto não encontrado.' });
+  res.json({ ingressos: proj.ingressos || { ativo: false, slug: '', lotes: [] } });
+});
+
+app.patch('/api/projeto/:projectId/ingressos-config', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const ud = loadUD(uid);
+  const proj = (ud.projects || []).find(p => p.id === req.params.projectId);
+  if (!proj) return res.status(404).json({ error: 'Projeto não encontrado.' });
+
+  if (req.body.ativo && !tokenDoProdutor(uid)) {
+    return res.status(400).json({ error: 'Conecte sua conta Mercado Pago antes de ativar as vendas.' });
+  }
+
+  if (!proj.ingressos) proj.ingressos = { ativo: false, slug: '', lotes: [] };
+
+  if (req.body.ativo && !proj.ingressos.slug) {
+    const slug = gerarSlugUnico(proj.nome);
+    proj.ingressos.slug = slug;
+    db.ticketSlugs[slug] = { userId: uid, projectId: proj.id };
+    saveDB(db);
+  }
+  if (req.body.ativo !== undefined) proj.ingressos.ativo = !!req.body.ativo;
+
+  if (Array.isArray(req.body.lotes)) {
+    proj.ingressos.lotes = req.body.lotes.map(l => ({
+      id: l.id || uuidv4(),
+      nome: sanitize(l.nome || 'Lote', 60),
+      preco: Math.max(0, parseFloat(l.preco) || 0),
+      qtdTotal: Math.max(0, parseInt(l.qtdTotal) || 0),
+      vendidos: parseInt(l.vendidos) || 0,
+      ativo: l.ativo !== false
+    }));
+  }
+  proj.updatedAt = new Date().toISOString();
+  saveUD(uid, ud);
+  res.json({ ok: true, ingressos: proj.ingressos });
+});
+
+// ── LISTAR PEDIDOS de um projeto (autenticado) ──
+app.get('/api/projeto/:projectId/pedidos', auth, (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const peds = loadPedidos(uid);
+  res.json({ pedidos: peds[req.params.projectId] || [] });
+});
+
+// ── SIMULAR PAGAMENTO (apenas em modo sandbox/teste) — testa o fluxo sem gastar de verdade ──
+app.post('/api/projeto/:projectId/pedidos/:pedidoId/simular', auth, async (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const user = db.users.find(u => u.id === uid);
+  if (!user?.mpAccount?.testMode) return res.status(403).json({ error: 'Simulação disponível apenas com conta Mercado Pago em modo TESTE.' });
+  const peds = loadPedidos(uid);
+  const lista = peds[req.params.projectId] || [];
+  const pedido = lista.find(p => p.id === req.params.pedidoId);
+  if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
+  if (pedido.status === 'pago') return res.json({ ok: true, jaProcessado: true });
+  pedido.status = 'pago';
+  pedido.pagoEm = new Date().toISOString();
+  pedido.mpPaymentId = 'SIMULADO-' + Date.now();
+  await processarPedidoAprovado(uid, req.params.projectId, pedido);
+  savePedidos(uid, peds);
+  res.json({ ok: true });
+});
+
+// ── CHECK-IN — valida código do ingresso na portaria ──
+app.post('/api/checkin/validar', auth, rateLimit(60000, 60), (req, res) => {
+  const uid = req.user.isSubUser ? req.user.parentId : req.user.id;
+  const { projectId, codigo } = req.body;
+  if (!projectId || !codigo) return res.status(400).json({ error: 'Dados incompletos.' });
+  const peds = loadPedidos(uid);
+  const lista = peds[projectId] || [];
+  let ticketEncontrado = null, pedidoEncontrado = null;
+  for (const p of lista) {
+    const t = (p.tickets || []).find(tk => tk.codigo === sanitize(codigo, 40));
+    if (t) { ticketEncontrado = t; pedidoEncontrado = p; break; }
+  }
+  if (!ticketEncontrado) return res.status(404).json({ error: 'Ingresso não encontrado.', valido: false });
+  if (ticketEncontrado.usado) return res.json({ valido: false, jaUsado: true, usadoEm: ticketEncontrado.usadoEm, ticket: ticketEncontrado, comprador: pedidoEncontrado.comprador });
+  ticketEncontrado.usado = true;
+  ticketEncontrado.usadoEm = new Date().toISOString();
+  savePedidos(uid, peds);
+  res.json({ valido: true, ticket: ticketEncontrado, comprador: pedidoEncontrado.comprador });
+});
+
+// ════════════════════════════════════════════════════════════
+// ROTAS PÚBLICAS — sem autenticação (página de compra)
+// ════════════════════════════════════════════════════════════
+
+// Info pública do evento para a página de vendas
+app.get('/api/public/evento/:slug', rateLimit(60000, 60), (req, res) => {
+  const ref = db.ticketSlugs[req.params.slug];
+  if (!ref) return res.status(404).json({ error: 'Evento não encontrado.' });
+  const ud = loadUD(ref.userId);
+  const proj = (ud.projects || []).find(p => p.id === ref.projectId);
+  if (!proj || !proj.ingressos?.ativo) return res.status(404).json({ error: 'Vendas não estão ativas para este evento.' });
+  const producerAcc = db.users.find(u => u.id === ref.userId)?.mpAccount;
+  const lotesPublicos = (proj.ingressos.lotes || [])
+    .filter(l => l.ativo && l.vendidos < l.qtdTotal)
+    .map(l => ({ id: l.id, nome: l.nome, preco: l.preco, disponivel: l.qtdTotal - l.vendidos }));
+  res.json({
+    nome: proj.nome, tipo: proj.tipo, cores: proj.cores || {},
+    dataEvento: proj.dataEvento || proj.modulos?.lancamento?.inputs?.data || '',
+    local: proj.modulos?.lancamento?.inputs?.local || '',
+    lotes: lotesPublicos,
+    testMode: !!producerAcc?.testMode
+  });
+});
+
+// Cria pedido + preferência de pagamento no Mercado Pago (com split de comissão)
+app.post('/api/public/checkout', rateLimit(60000, 20), async (req, res) => {
+  try {
+    const { slug, itens, comprador } = req.body;
+    const ref = db.ticketSlugs[slug];
+    if (!ref) return res.status(404).json({ error: 'Evento não encontrado.' });
+    const uid = ref.userId;
+    const producerToken = tokenDoProdutor(uid);
+    if (!producerToken) return res.status(500).json({ error: 'Este produtor ainda não conectou uma conta de pagamento.' });
+    if (!comprador?.nome || !comprador?.email) return res.status(400).json({ error: 'Nome e e-mail obrigatórios.' });
+    if (!Array.isArray(itens) || !itens.length) return res.status(400).json({ error: 'Selecione ao menos um ingresso.' });
+
+    const ud = loadUD(uid);
+    const proj = (ud.projects || []).find(p => p.id === ref.projectId);
+    if (!proj || !proj.ingressos?.ativo) return res.status(404).json({ error: 'Vendas encerradas.' });
+
+    const mpItems = [];
+    let total = 0;
+    for (const it of itens) {
+      const lote = (proj.ingressos.lotes || []).find(l => l.id === it.loteId);
+      if (!lote || !lote.ativo) return res.status(400).json({ error: 'Lote indisponível.' });
+      const qtd = Math.max(1, parseInt(it.qtd) || 1);
+      if (lote.vendidos + qtd > lote.qtdTotal) return res.status(400).json({ error: `Apenas ${lote.qtdTotal - lote.vendidos} ingressos disponíveis em "${lote.nome}".` });
+      mpItems.push({ title: `${proj.nome} — ${lote.nome}`, quantity: qtd, unit_price: lote.preco, currency_id: 'BRL' });
+      total += lote.preco * qtd;
+    }
+
+    const pedidoId = uuidv4();
+    const host = req.get('host');
+    const proto = req.get('x-forwarded-proto') || 'https';
+    const baseUrl = `${proto}://${host}`;
+    const feePercent = db.marketplaceFeePercent || 10;
+    const marketplaceFee = Math.round(total * (feePercent / 100) * 100) / 100;
+
+    // Cria preferência usando o TOKEN DO PRODUTOR — o dinheiro cai direto na conta dele,
+    // e marketplace_fee é a comissão retida automaticamente para a plataforma (Workamusic)
+    const prefBody = {
+      items: mpItems,
+      payer: { name: sanitize(comprador.nome, 100), email: comprador.email },
+      external_reference: pedidoId,
+      marketplace_fee: marketplaceFee,
+      back_urls: {
+        success: `${baseUrl}/e/${slug}?pedido=${pedidoId}&status=success`,
+        pending: `${baseUrl}/e/${slug}?pedido=${pedidoId}&status=pending`,
+        failure: `${baseUrl}/e/${slug}?pedido=${pedidoId}&status=failure`
+      },
+      auto_return: 'approved',
+      notification_url: `${baseUrl}/api/mp/webhook?uid=${uid}&proj=${ref.projectId}&ped=${pedidoId}`,
+      statement_descriptor: 'LOTA INGRESSOS'
+    };
+
+    const mpResp = await fetch(`${MP_API}/checkout/preferences`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${producerToken}` },
+      body: JSON.stringify(prefBody)
+    });
+    const mpData = await mpResp.json();
+    if (!mpResp.ok) return res.status(400).json({ error: mpData.message || 'Erro ao criar pagamento.' });
+
+    const peds = loadPedidos(uid);
+    if (!peds[ref.projectId]) peds[ref.projectId] = [];
+    peds[ref.projectId].push({
+      id: pedidoId,
+      status: 'pendente',
+      comprador: { nome: sanitize(comprador.nome, 100), email: comprador.email, telefone: sanitize(comprador.telefone || '', 30) },
+      itens: itens.map(it => ({ loteId: it.loteId, qtd: it.qtd })),
+      total,
+      marketplaceFee,
+      mpPreferenceId: mpData.id,
+      mpPaymentId: null,
+      tickets: [],
+      createdAt: new Date().toISOString()
+    });
+    savePedidos(uid, peds);
+
+    res.json({ ok: true, pedidoId, init_point: mpData.init_point, sandbox_init_point: mpData.sandbox_init_point, testMode: isTestToken(producerToken) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Webhook do Mercado Pago — confirma pagamento, gera ingressos e envia e-mail
+app.post('/api/mp/webhook', async (req, res) => {
+  try {
+    const paymentId = req.body?.data?.id || req.query['data.id'];
+    const type = req.body?.type || req.query.type;
+    if (type !== 'payment' || !paymentId) return res.sendStatus(200);
+
+    // Lookup direto via query params (embutidos na notification_url) — evita varrer todos os slugs
+    const { uid, proj: projectId, ped: pedidoId } = req.query;
+    if (!uid || !projectId || !pedidoId) return res.sendStatus(200);
+
+    const producerToken = tokenDoProdutor(uid);
+    if (!producerToken) return res.sendStatus(200);
+
+    const payResp = await fetch(`${MP_API}/v1/payments/${paymentId}`, { headers: { 'Authorization': `Bearer ${producerToken}` } });
+    const payment = await payResp.json();
+    if (!payResp.ok) return res.sendStatus(200);
+
+    const peds = loadPedidos(uid);
+    const lista = peds[projectId] || [];
+    const pedido = lista.find(p => p.id === pedidoId);
+    if (!pedido) return res.sendStatus(200);
+
+    if (pedido.mpPaymentId === String(paymentId) && pedido.status === 'pago') return res.sendStatus(200);
+    pedido.mpPaymentId = String(paymentId);
+
+    if (payment.status === 'approved' && pedido.status !== 'pago') {
+      pedido.status = 'pago';
+      pedido.pagoEm = new Date().toISOString();
+      await processarPedidoAprovado(uid, projectId, pedido);
+    } else if (['rejected', 'cancelled'].includes(payment.status)) {
+      pedido.status = 'recusado';
+    }
+    savePedidos(uid, peds);
+    res.sendStatus(200);
+  } catch (e) {
+    res.sendStatus(200); // MP não deve reenviar em loop por erro nosso
+  }
+});
+
+// Status do pedido — usado pela página pública para exibir ingressos após pagamento
+app.get('/api/public/pedido/:pedidoId', rateLimit(60000, 60), (req, res) => {
+  for (const slug in db.ticketSlugs) {
+    const ref = db.ticketSlugs[slug];
+    const peds = loadPedidos(ref.userId);
+    const lista = peds[ref.projectId] || [];
+    const pedido = lista.find(p => p.id === req.params.pedidoId);
+    if (pedido) {
+      return res.json({
+        status: pedido.status, total: pedido.total,
+        tickets: pedido.tickets || [], comprador: { nome: pedido.comprador.nome }
+      });
+    }
+  }
+  res.status(404).json({ error: 'Pedido não encontrado.' });
+});
+
+// Serve a página pública de compra em /e/:slug
+app.get('/e/:slug', (req, res) => {
+  const comprarPath = path.join(PUBLIC_DIR, 'comprar.html');
+  if (fs.existsSync(comprarPath)) return res.sendFile(comprarPath);
+  res.status(404).send('Página de vendas não encontrada.');
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok', app: 'Lota v2.0', brand: 'Workamusic',
     users: db.users.length,
     anthropic: !!process.env.ANTHROPIC_API_KEY ? '✅' : '❌',
+    mercadopago_oauth: (MP_CLIENT_ID && MP_CLIENT_SECRET) ? '✅' : '❌ (configure MP_CLIENT_ID e MP_CLIENT_SECRET)',
+    resend_email: !!RESEND_API_KEY ? '✅' : '❌ (configure RESEND_API_KEY)',
     uptime: Math.round(process.uptime()) + 's'
   });
 });
