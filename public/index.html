@@ -567,13 +567,22 @@ body{display:flex;overflow:hidden;}
   <!-- ══ ADMIN ══ -->
   <div class="page" id="page-admin">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;gap:9px;align-items:center">
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
         <label style="font-size:12px;font-weight:600;color:var(--text2)">Slots:</label>
         <input type="number" id="globalSlots" class="fi2" style="width:68px" min="1">
         <button class="btn bo btn-sm" onclick="saveSlots()">Salvar</button>
         <span id="slotsInfo" style="font-size:11px;color:var(--text3)"></span>
       </div>
       <button class="btn bp" onclick="openAddModal()">+ Novo Usuário</button>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="ct">🎟️ Comissão da Plataforma (Split de Pagamento)</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">% retido automaticamente de cada venda de ingresso feita por qualquer produtor conectado ao Mercado Pago.</div>
+      <div style="display:flex;gap:9px;align-items:center">
+        <input type="number" id="feePercentInput" class="fi2" style="width:80px" min="0" max="50" step="0.1">
+        <span style="font-size:13px;color:var(--text2)">%</span>
+        <button class="btn bp btn-sm" onclick="saveFeePercent()">Salvar</button>
+      </div>
     </div>
     <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Login</th><th>Nome</th><th>Plano</th><th>Uso</th><th>Status</th><th>Ações</th></tr></thead><tbody id="userTbody"></tbody></table></div></div>
     <div style="margin-top:14px;font-size:10px;color:var(--text3);text-align:center">© 2025 Workamusic — Sistema Lota</div>
@@ -770,7 +779,7 @@ function gp(id,el){
   if(mobHam) mobHam.style.display=showBack?'none':'flex';
   // Callbacks específicos por página
   if(id==='projetos') renderProjects();
-  if(id==='admin') loadAU().then(renderAdmin);
+  if(id==='admin'){ loadAU().then(renderAdmin); loadFeePercent(); }
   if(id==='dicas') loadDicas();
   if(id==='equipe') renderEquipe();
   if(id==='fornecedores') loadFornecedores();
@@ -1033,6 +1042,7 @@ function openProj(id,tab){
     +'<div class="pdh"><div class="pdh-ic">🎪</div><div class="pdh-ti">'+esc(p.nome||'Projeto')+'</div><div class="pdh-me">'+esc(p.tipo||'Evento')+' · '+new Date(p.createdAt).toLocaleDateString('pt-BR')+(p.status==='ativo'?' · ✅ Ativo':p.status==='finalizado'?' · 🏁 Finalizado':'')+'</div></div>'
     +'<div class="tabs">'
     +'<div class="tab active" onclick="spTab(\'visao\',this)">📋 Visão</div>'
+    +'<div class="tab" onclick="spTab(\'ingressos\',this)">🎟️ Venda de Ingressos</div>'
     +'<div class="tab" onclick="spTab(\'insumos\',this)">📎 Insumos</div>'
     +'<div class="tab" onclick="spTab(\'metricas\',this)">📊 Métricas</div>'
     +'<div class="tab" onclick="spTab(\'roi\',this)">💰 ROI</div>'
@@ -1047,6 +1057,9 @@ function openProj(id,tab){
 
     // INSUMOS
     +'<div id="ptInsumos" style="display:none"><div id="insContainer"></div></div>'
+
+    // VENDA DE INGRESSOS
+    +'<div id="ptIngressos" style="display:none"><div id="ingressosContainer"></div></div>'
 
     // MÉTRICAS
     +'<div id="ptMetricas" style="display:none">'
@@ -1112,10 +1125,15 @@ function openProj(id,tab){
 }
 
 function spTab(tab,el){
-  ['Visao','Insumos','Metricas','Roi','Meta'].forEach(t=>{const e=document.getElementById('pt'+t);if(e)e.style.display='none';});
+  ['Visao','Ingressos','Insumos','Metricas','Roi','Meta'].forEach(t=>{const e=document.getElementById('pt'+t);if(e)e.style.display='none';});
   const e=document.getElementById('pt'+tab.charAt(0).toUpperCase()+tab.slice(1));if(e)e.style.display='block';
   el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  if(tab==='ingressos'){
+    const pid=document.getElementById('projDetalhe').dataset.pid;
+    const cont=document.getElementById('ingressosContainer');
+    if(cont && !cont.dataset.loaded){ cont.dataset.loaded='1'; loadIngressosTab(pid); }
+  }
 }
 
 function retomar(projId){
@@ -1326,6 +1344,8 @@ function renderAdmin(){
   document.getElementById('userTbody').innerHTML=AU.map(u=>'<tr><td><strong>'+esc(u.name)+'</strong></td><td>'+esc(u.displayName||'—')+'</td><td><span class="plan-b plan-'+(u.plan||'basic')+'">'+(u.plan||'basic').toUpperCase()+'</span></td><td>'+(u.used||0)+'/'+(u.limit===999?'∞':u.limit)+'</td><td class="'+(u.active?'st-on':'st-off')+'">'+(u.isAdmin?'Admin':u.active?'Ativo':'Inativo')+'</td><td>'+(u.isAdmin?'<span style="font-size:11px;color:var(--text3)">Protegido</span>':'<div style="display:flex;gap:5px"><button class="btn bg btn-sm" onclick="openEdit(\''+u.id+'\')">Editar</button><button class="btn bg btn-sm" onclick="togU(\''+u.id+'\')">'+( u.active?'Desativar':'Ativar')+'</button><button class="btn bdng btn-sm" onclick="delU(\''+u.id+'\')">✕</button></div>')+'</td></tr>').join('');
 }
 async function saveSlots(){const v=parseInt(document.getElementById('globalSlots').value);if(isNaN(v)||v<1){toast('Inválido.','err');return;}try{await api('PATCH','/api/admin/slots',{slots:v});await loadAU();renderAdmin();toast('Slots salvos!','ok');}catch(e){toast(e.message,'err');}}
+async function loadFeePercent(){try{const d=await api('GET','/api/admin/marketplace-fee');const el=document.getElementById('feePercentInput');if(el)el.value=d.feePercent;}catch(e){}}
+async function saveFeePercent(){const v=parseFloat(document.getElementById('feePercentInput').value);if(isNaN(v)||v<0||v>50){toast('Valor inválido (0-50%).','err');return;}try{await api('PATCH','/api/admin/marketplace-fee',{feePercent:v});toast('Comissão atualizada!','ok');}catch(e){toast(e.message,'err');}}
 function openAddModal(){['nwN','nwP','nwD'].forEach(id=>document.getElementById(id).value='');document.getElementById('nwPl').value='basic';document.getElementById('nwL').value='10';document.getElementById('addModal').classList.add('show');}
 async function criarUser(){const n=gv('nwN'),p=gv('nwP');if(!n||!p){toast('Login e senha obrigatórios.','err');return;}try{const r=await api('POST','/api/admin/users',{name:n,password:p,displayName:gv('nwD')||n,plan:gv('nwPl'),limit:gv('nwL')});AU.push(r.user);renderAdmin();cm('addModal');toast('Usuário criado!','ok');}catch(e){toast(e.message,'err');}}
 function openEdit(id){const u=AU.find(x=>x.id===id);if(!u)return;document.getElementById('edId').value=id;document.getElementById('edN').value=u.name;document.getElementById('edP').value='';document.getElementById('edD').value=u.displayName||'';document.getElementById('edPl').value=u.plan||'basic';document.getElementById('edL').value=u.limit;document.getElementById('editModal').classList.add('show');}
@@ -1613,6 +1633,256 @@ async function loadFinalizados(){
       }).join('')+'</div>';
   }catch(e){toast('Erro: '+e.message,'err');}
 }
+
+// ─── VENDA DE INGRESSOS (Mercado Pago) ──────────────────────
+async function loadIngressosTab(pid){
+  const cont=document.getElementById('ingressosContainer');
+  if(!cont) return;
+  cont.innerHTML='<div class="empty"><span class="empty-ic">⏳</span><p>Carregando...</p></div>';
+  try{
+    const [cfg,peds,mpStatus]=await Promise.all([
+      api('GET','/api/projeto/'+pid+'/ingressos-config'),
+      api('GET','/api/projeto/'+pid+'/pedidos').catch(()=>({pedidos:[]})),
+      api('GET','/api/mp/status').catch(()=>({connected:false}))
+    ]);
+    renderIngressosTab(pid, cfg.ingressos||{ativo:false,slug:'',lotes:[]}, peds.pedidos||[], mpStatus);
+  }catch(e){
+    cont.innerHTML='<div class="empty"><span class="empty-ic">⚠️</span><p>'+esc(e.message)+'</p></div>';
+  }
+}
+
+let _ingLotesTemp=[];
+
+function renderIngressosTab(pid, cfg, pedidos, mpStatus){
+  const cont=document.getElementById('ingressosContainer');
+  _ingLotesTemp=JSON.parse(JSON.stringify(cfg.lotes||[]));
+  const pagos=pedidos.filter(p=>p.status==='pago');
+  const totalArrecadado=pagos.reduce((s,p)=>s+p.total,0);
+  const totalIngressos=pagos.reduce((s,p)=>s+(p.tickets||[]).length,0);
+  const publicUrl=cfg.slug?(location.origin+'/e/'+cfg.slug):'';
+  const conectado=mpStatus?.connected;
+  const testMode=mpStatus?.testMode;
+
+  cont.innerHTML=''
+    // Conexão Mercado Pago
+    +'<div class="card" style="margin-bottom:14px;'+(conectado?'':'border-color:var(--pb)')+'">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+    +'<div><div class="ct" style="margin-bottom:2px">Conta de Recebimento</div>'
+    +(conectado
+      ?'<div style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:6px">✅ Mercado Pago conectada'+(testMode?' <span style="background:var(--pbg);color:var(--p);border:1px solid var(--pb);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700">🧪 MODO TESTE</span>':'')+'</div>'
+      :'<div style="font-size:12px;color:var(--text2)">Conecte sua conta para receber os pagamentos direto e ativar as vendas</div>')
+    +'</div>'
+    +(conectado
+      ?'<button class="btn bdng btn-sm" onclick="desconectarMP(\''+pid+'\')">Desconectar</button>'
+      :'<button class="btn bp" onclick="conectarMP()">🔗 Conectar Mercado Pago</button>')
+    +'</div>'
+    +(conectado?'<div style="font-size:11px;color:var(--text3);margin-top:10px">Comissão da plataforma: <strong>'+mpStatus.feePercent+'%</strong> por venda, retida automaticamente pelo Mercado Pago no repasse.</div>':'')
+    +'</div>'
+
+    // Toggle ativo + link público (só se conectado)
+    +(conectado?'<div class="card" style="margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+      +'<div><div class="ct" style="margin-bottom:2px">Venda Online de Ingressos</div><div style="font-size:12px;color:var(--text2)">PIX, cartão e parcelamento — powered by Mercado Pago</div></div>'
+      +'<button class="btn '+(cfg.ativo?'bgreen':'bp')+'" onclick="toggleIngressos(\''+pid+'\','+(!cfg.ativo)+')">'+(cfg.ativo?'✅ Vendas Ativas':'▶️ Ativar Vendas')+'</button>'
+      +'</div>'
+      +(cfg.ativo&&publicUrl?'<div style="margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<code style="flex:1;font-family:monospace;font-size:11px;color:var(--text);word-break:break-all;min-width:180px">'+esc(publicUrl)+'</code>'
+        +'<button class="btn bp btn-sm" onclick="navigator.clipboard.writeText(\''+esc(publicUrl)+'\').then(()=>toast(\'Link copiado!\',\'ok\'))">Copiar</button>'
+        +'<a href="'+esc(publicUrl)+'" target="_blank" class="btn bo btn-sm">Ver página →</a>'
+        +'</div>':'')
+      +(testMode?'<div style="margin-top:10px;background:var(--pbg);border:1px solid var(--pb);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text2)">🧪 Conta em modo teste — use os <a href="#" onclick="mostrarCartoesTeste(event)" style="color:var(--p)">cartões de teste do Mercado Pago</a> para simular compras sem gastar de verdade.</div>':'')
+      +'</div>':'')
+
+    // Resumo de vendas
+    +(pagos.length?'<div class="met-g" style="margin-bottom:14px">'
+      +'<div class="met-c"><div class="met-l">🎟️ Ingressos Vendidos</div><div class="met-v">'+totalIngressos+'</div></div>'
+      +'<div class="met-c"><div class="met-l">💰 Arrecadado</div><div class="met-v">R$'+totalArrecadado.toLocaleString('pt-BR')+'</div></div>'
+      +'<div class="met-c"><div class="met-l">📦 Pedidos Pagos</div><div class="met-v">'+pagos.length+'</div></div>'
+      +'</div>':'')
+
+    // Configuração de lotes
+    +(conectado?'<div class="card" style="margin-bottom:14px">'
+      +'<div class="ct">Lotes de Ingressos</div>'
+      +'<div id="lotesListEl"></div>'
+      +'<button class="btn bo btn-sm" onclick="addLoteTemp()" style="margin-top:8px">+ Adicionar Lote</button>'
+      +'<div class="br"><button class="btn bp" onclick="salvarLotes(\''+pid+'\')">💾 Salvar Lotes</button></div>'
+      +'</div>':'')
+
+    // Check-in com scanner de câmera
+    +(conectado?'<div class="card" style="margin-bottom:14px">'
+      +'<div class="ct">🚪 Check-in na Portaria</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Escaneie o QR Code ou digite o código do ingresso.</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<input type="text" class="fi2" id="checkinCodigo" placeholder="LT-XXXXXXXX-XXXX" style="flex:1;min-width:160px;font-family:monospace" onkeydown="if(event.key===\'Enter\')validarCheckin(\''+pid+'\')">'
+      +'<button class="btn bo" onclick="abrirScanner(\''+pid+'\')">📷 Escanear</button>'
+      +'<button class="btn bp" onclick="validarCheckin(\''+pid+'\')">Validar</button>'
+      +'</div>'
+      +'<div id="checkinResult" style="margin-top:12px"></div>'
+      +'</div>':'')
+
+    // Lista de pedidos
+    +'<div class="card">'
+    +'<div class="ct">Pedidos ('+pedidos.length+')</div>'
+    +(pedidos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Comprador</th><th>Itens</th><th>Total</th><th>Status</th><th>Data</th>'+(testMode?'<th></th>':'')+'</tr></thead><tbody>'
+      +pedidos.slice().reverse().map(p=>{
+        const stMap={pago:['st-on','✅ Pago'],pendente:['',' ⏳ Pendente'],recusado:['st-off','❌ Recusado']};
+        const [cls,lbl]=stMap[p.status]||['',p.status];
+        const simBtn=(testMode&&p.status==='pendente')?'<td><button class="btn bo btn-sm" onclick="simularPagamento(\''+pid+'\',\''+p.id+'\')">🧪 Simular pago</button></td>':(testMode?'<td></td>':'');
+        return'<tr><td>'+esc(p.comprador?.nome||'—')+'<br><span style="font-size:10px;color:var(--text3)">'+esc(p.comprador?.email||'')+'</span></td><td>'+(p.tickets?.length||p.itens?.reduce((s,i)=>s+(i.qtd||0),0)||0)+' ingresso(s)</td><td>R$'+p.total.toLocaleString('pt-BR')+'</td><td class="'+cls+'">'+lbl+'</td><td>'+new Date(p.createdAt).toLocaleDateString('pt-BR')+'</td>'+simBtn+'</tr>';
+      }).join('')+'</tbody></table></div>'
+      :'<div class="empty" style="padding:20px"><span class="empty-ic" style="font-size:22px">📦</span><p>Nenhum pedido ainda.</p></div>')
+    +'</div>';
+
+  if(conectado) renderLotesTemp();
+}
+
+function renderLotesTemp(){
+  const el=document.getElementById('lotesListEl');
+  if(!el) return;
+  if(!_ingLotesTemp.length){el.innerHTML='<div class="empty" style="padding:16px"><span class="empty-ic" style="font-size:20px">🎟️</span><p>Nenhum lote configurado. Adicione um lote abaixo.</p></div>';return;}
+  el.innerHTML=_ingLotesTemp.map((l,i)=>'<div style="display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
+    +'<input type="text" class="fi2" style="flex:2;min-width:120px" value="'+esc(l.nome)+'" placeholder="Nome do lote" onchange="_ingLotesTemp['+i+'].nome=this.value">'
+    +'<input type="number" class="fi2" style="width:100px" value="'+l.preco+'" min="0" step="0.01" placeholder="Preço" onchange="_ingLotesTemp['+i+'].preco=parseFloat(this.value)||0">'
+    +'<input type="number" class="fi2" style="width:90px" value="'+l.qtdTotal+'" min="0" placeholder="Qtd" onchange="_ingLotesTemp['+i+'].qtdTotal=parseInt(this.value)||0">'
+    +'<span style="font-size:11px;color:var(--text3);white-space:nowrap">'+(l.vendidos||0)+' vendidos</span>'
+    +'<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);white-space:nowrap"><input type="checkbox" '+(l.ativo!==false?'checked':'')+' onchange="_ingLotesTemp['+i+'].ativo=this.checked"> Ativo</label>'
+    +'<button class="btn bdng btn-sm" onclick="_ingLotesTemp.splice('+i+',1);renderLotesTemp()">✕</button>'
+    +'</div>').join('');
+}
+
+function addLoteTemp(){
+  _ingLotesTemp.push({id:'novo-'+Date.now(),nome:'Novo Lote',preco:0,qtdTotal:0,vendidos:0,ativo:true});
+  renderLotesTemp();
+}
+
+async function salvarLotes(pid){
+  try{
+    await api('PATCH','/api/projeto/'+pid+'/ingressos-config',{lotes:_ingLotesTemp});
+    toast('Lotes salvos!','ok');
+    loadIngressosTab(pid);
+  }catch(e){toast('Erro: '+e.message,'err');}
+}
+
+async function toggleIngressos(pid, ativar){
+  try{
+    await api('PATCH','/api/projeto/'+pid+'/ingressos-config',{ativo:ativar});
+    toast(ativar?'Vendas ativadas!':'Vendas desativadas.','ok');
+    loadIngressosTab(pid);
+  }catch(e){toast('Erro: '+e.message,'err');}
+}
+
+// ── Conectar/desconectar Mercado Pago (OAuth) ──
+async function conectarMP(){
+  try{
+    const d=await api('GET','/api/mp/oauth/connect');
+    const win=window.open(d.url,'mp_oauth','width=520,height=680');
+    // Detecta quando a janela de OAuth fecha para recarregar o status
+    const timer=setInterval(()=>{
+      if(win.closed){
+        clearInterval(timer);
+        const pid=document.getElementById('projDetalhe').dataset.pid;
+        setTimeout(()=>loadIngressosTab(pid),600);
+      }
+    },700);
+  }catch(e){toast('Erro: '+e.message,'err');}
+}
+async function desconectarMP(pid){
+  if(!confirm('Desconectar sua conta Mercado Pago? As vendas serão pausadas.'))return;
+  try{ await api('POST','/api/mp/disconnect'); toast('Desconectado.','ok'); loadIngressosTab(pid); }
+  catch(e){toast('Erro: '+e.message,'err');}
+}
+
+async function simularPagamento(pid, pedidoId){
+  if(!confirm('Simular este pagamento como aprovado? (apenas modo teste)'))return;
+  try{
+    await api('POST','/api/projeto/'+pid+'/pedidos/'+pedidoId+'/simular',{});
+    toast('Pagamento simulado! Ingressos gerados.','ok');
+    loadIngressosTab(pid);
+  }catch(e){toast('Erro: '+e.message,'err');}
+}
+
+function mostrarCartoesTeste(ev){
+  ev.preventDefault();
+  alert('Cartões de teste Mercado Pago:\n\nMastercard: 5031 4332 1540 6351\nVisa: 4235 6477 2802 5682\nCVV: 123 | Validade: qualquer data futura\nNome: APRO (aprovado) ou CONT (pendente) ou OTHE (recusado)\nCPF: 12345678909');
+}
+
+async function validarCheckin(pid){
+  const codigo=gv('checkinCodigo');
+  if(!codigo){toast('Digite o código.','err');return;}
+  const resEl=document.getElementById('checkinResult');
+  try{
+    const d=await api('POST','/api/checkin/validar',{projectId:pid,codigo});
+    if(d.valido){
+      resEl.innerHTML='<div style="background:var(--gbg);border:1px solid rgba(21,128,61,.3);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px"><span style="font-size:28px">✅</span><div><div style="font-weight:700;color:var(--green)">Entrada liberada!</div><div style="font-size:12px;color:var(--text2)">'+esc(d.comprador?.nome||'')+' · '+esc(d.ticket?.loteNome||'')+'</div></div></div>';
+      document.getElementById('checkinCodigo').value='';
+    }else if(d.jaUsado){
+      resEl.innerHTML='<div style="background:var(--rbg);border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px"><span style="font-size:28px">⚠️</span><div><div style="font-weight:700;color:var(--red)">Ingresso já utilizado!</div><div style="font-size:12px;color:var(--text2)">Usado em '+new Date(d.usadoEm).toLocaleString('pt-BR')+'</div></div></div>';
+    }
+  }catch(e){
+    resEl.innerHTML='<div style="background:var(--rbg);border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px"><span style="font-size:28px">❌</span><div><div style="font-weight:700;color:var(--red)">Ingresso inválido</div><div style="font-size:12px;color:var(--text2)">'+esc(e.message)+'</div></div></div>';
+  }
+}
+
+// ── Scanner de QR Code via câmera ──
+let _scanStream=null, _scanRAF=null;
+function garantirJsQR(cb){
+  if(window.jsQR){ cb(); return; }
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js';
+  s.onload=cb;
+  document.head.appendChild(s);
+}
+function abrirScanner(pid){
+  garantirJsQR(()=>{
+    const modal=document.createElement('div');
+    modal.id='scanModal';
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML='<div style="background:var(--card);border-radius:14px;padding:16px;max-width:400px;width:100%">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:var(--text)">📷 Escanear Ingresso</strong><button onclick="fecharScanner()" style="background:none;border:none;font-size:20px;color:var(--text2);cursor:pointer">✕</button></div>'
+      +'<video id="scanVideo" playsinline style="width:100%;border-radius:10px;background:#000"></video>'
+      +'<canvas id="scanCanvas" style="display:none"></canvas>'
+      +'<div id="scanStatus" style="font-size:12px;color:var(--text3);text-align:center;margin-top:10px">Aponte a câmera para o QR Code...</div>'
+      +'</div>';
+    document.body.appendChild(modal);
+    iniciarScanner(pid);
+  });
+}
+function fecharScanner(){
+  if(_scanRAF) cancelAnimationFrame(_scanRAF);
+  if(_scanStream) _scanStream.getTracks().forEach(t=>t.stop());
+  const m=document.getElementById('scanModal'); if(m) m.remove();
+}
+async function iniciarScanner(pid){
+  try{
+    _scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video=document.getElementById('scanVideo');
+    video.srcObject=_scanStream;
+    await video.play();
+    const canvas=document.getElementById('scanCanvas');
+    const ctx=canvas.getContext('2d');
+    const tick=()=>{
+      if(!document.getElementById('scanModal')) return;
+      if(video.readyState===video.HAVE_ENOUGH_DATA){
+        canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const code=window.jsQR(img.data,img.width,img.height);
+        if(code&&code.data){
+          document.getElementById('scanStatus').textContent='✅ Código detectado!';
+          document.getElementById('checkinCodigo').value=code.data;
+          fecharScanner();
+          validarCheckin(pid);
+          return;
+        }
+      }
+      _scanRAF=requestAnimationFrame(tick);
+    };
+    _scanRAF=requestAnimationFrame(tick);
+  }catch(e){
+    document.getElementById('scanStatus').textContent='Erro ao acessar câmera: '+e.message;
+  }
+}
+
 
 // ─── AUTO LOGIN ────────────────────────────────────────────
 (async()=>{
