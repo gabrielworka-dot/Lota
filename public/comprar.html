@@ -171,7 +171,9 @@ async function finalizarCompra(){
   btn.disabled = true; btn.textContent = 'Processando...';
   try{
     const d = await api('POST','/api/public/checkout',{ slug, itens, comprador:{ nome, email, telefone: tel } });
-    location.href = d.init_point;
+    // Contas em modo teste PRECISAM ir para o sandbox_init_point — o init_point normal
+    // é a tela de produção e rejeita cartões de teste como inválidos
+    location.href = (d.testMode && d.sandbox_init_point) ? d.sandbox_init_point : d.init_point;
   }catch(e){
     errEl.textContent = e.message; errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Ir para pagamento →';
